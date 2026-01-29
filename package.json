@@ -1,0 +1,15 @@
+{
+  "name": "lipa-upay",
+  "version": "1.0.0",
+  "description": "LIPA SME Pan-African Payment Platform",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
