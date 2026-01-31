@@ -170,14 +170,14 @@ input,select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--b
 
 <script>
 // AUTO-DETECT BASE URL
-const BASE_URL = "https://koby-11.onrender.com";
-
+const BASE_URL = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" 
     ? "http://localhost:10000" 
-    : "";
+    : "https://koby-11.onrender.com";
 
 let state = {
     user: null,
-    tx: []
+    tx: [],
+    balancesVisible: true
 };
 
 // --- AUTH HANDLERS ---
@@ -207,25 +207,26 @@ async function handleSignup() {
 }
 
 async function handleLogin() {
-    const payload = {
-        email: document.getElementById('loginEmail').value,
-        pin: document.getElementById('loginPin').value
-    };
+    const email = document.getElementById('loginEmail').value;
+    const pin = document.getElementById('loginPin').value;
+    
+    if(!email || !pin) return alert("Please fill all fields");
+
     try {
         const res = await fetch(`${BASE_URL}/api/login`, {
             method: 'POST',
             headers: {'Content-Type':'application/json'},
-            body: JSON.stringify(payload)
+            body: JSON.stringify({ email, pin })
         });
         const data = await res.json();
         if(data.success) {
             state.user = data.merchant;
             navigateTo('dashboardPage');
         } else {
-            alert(data.error);
+            alert(data.error || "Login Failed");
         }
     } catch(e) {
-        alert("Authentication failed. Ensure your MongoDB URI is correct.");
+        alert("Authentication failed. Check your server connection.");
     }
 }
 
@@ -254,7 +255,6 @@ async function initiatePayment() {
 }
 
 async function confirmPayment() {
-    // In production, this would verify the actual M-Pesa transaction via backend
     try {
         const res = await fetch(`${BASE_URL}/api/payment`, {
             method: 'POST',
@@ -278,8 +278,9 @@ function updateUI() {
     if(!state.user) return;
     document.getElementById('merchantTitle').innerText = state.user.name;
     document.getElementById('walletInfo').innerText = `Wallet: ${state.user.wallet}`;
-    document.getElementById('fiatBal').innerText = state.user.fiatBalance.toLocaleString();
-    document.getElementById('cryptoBal').innerText = state.user.cryptoBalance + " USDT";
+    
+    document.getElementById('fiatBal').innerText = state.balancesVisible ? state.user.fiatBalance.toLocaleString() : "****";
+    document.getElementById('cryptoBal').innerText = state.balancesVisible ? (state.user.cryptoBalance + " USDT") : "****";
     document.getElementById('vaultBal').innerText = "KES " + state.user.vaultBalance.toLocaleString();
 
     document.getElementById('ledger').innerHTML = state.tx.map(t => `
@@ -287,6 +288,11 @@ function updateUI() {
             <div><strong>${t.type}</strong><br><small>${t.time}</small></div>
             <div style="color:var(--accent)">+${parseFloat(t.amt).toLocaleString()}</div>
         </div>`).join('');
+}
+
+function toggleBalances() {
+    state.balancesVisible = !state.balancesVisible;
+    updateUI();
 }
 
 function navigateTo(p) {
