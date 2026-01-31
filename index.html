@@ -520,7 +520,9 @@ input,select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--b
 <script>
 // --- LIVE SERVER CONFIGURATION ---
 // Change this to your live URL (e.g., https://your-app.onrender.com) when you deploy your backend
-const BASE_URL = "http://localhost:5000"; 
+// Inside index.html
+const BASE_URL = ""; // Empty string means "this current server"
+
 
 const FX = { KES:1, USD:132.5, USDT:132.5, GBP:168.0, EUR:142.0, NGN:0.08, ZAR:7.1, GHS:10.5, RWF:0.11 };
 let state = {
