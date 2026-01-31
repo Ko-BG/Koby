@@ -32,38 +32,21 @@ h1{font-size:1.4rem;font-weight:800;letter-spacing:-1px;}
 .bal-val{font-size:1.6rem;font-weight:800;color:var(--accent);}
 .bal-sub{font-family:'Space Mono';font-size:0.85rem;color:var(--crypto);}
 
-/* Analytics Bars */
-.analytics-container { display: flex; align-items: flex-end; justify-content: space-around; height: 120px; padding-top: 15px; border-top: 1px solid var(--border); }
-.bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.bar { width: 15px; background: var(--accent); border-radius: 4px 4px 0 0; transition: height 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); min-height: 2px; }
-.bar.incentive-bar { background: var(--incentive); }
-.bar-label { font-size: 0.6rem; font-weight: 800; color: var(--muted); }
-
 /* Buttons & Inputs */
 button{width:100%;padding:16px;border:none;border-radius:16px;font-weight:700;cursor:pointer;transition:0.2s;font-size:0.95rem; margin-bottom: 8px;}
 button:active{transform:scale(0.98);}
 .btn-primary{background:var(--accent);color:#064e3b;}
-.btn-vault{background:var(--vault-color);color:white;}
-.btn-swap{background:#1e293b;color:var(--crypto);border:1px solid var(--crypto);}
-.btn-withdraw{background:#1e293b;color:white;border:1px solid var(--border);}
 .btn-logout{background:var(--danger);color:white; font-size: 0.7rem; padding: 8px 12px; width: auto; border-radius: 8px;}
 .btn-ghost{background:none; color: var(--accent); text-decoration: underline; font-size: 0.85rem;}
-.btn-settle { background: #334155; color: #f1f5f9; border: 1px dashed var(--muted); }
 
 .modal{position:fixed;inset:0;background:rgba(0,0,0,0.95);display:none;align-items:center;justify-content:center;z-index:1000;padding:15px;backdrop-filter:blur(10px);}
-.modal-inner{background:#1e293b;border:1px solid var(--border);width:100%;max-width:400px;padding:25px;border-radius:32px;overflow-y:auto;max-height:90vh;}
+.modal-inner{background:#1e293b;border:1px solid var(--border);width:100%;max-width:400px;padding:25px;border-radius:32px;}
 label{display:block;font-size:0.7rem;color:var(--muted);margin:12px 0 4px;}
 input,select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--border);background:#020617;color:white;font-size:1rem;margin-bottom:10px;}
 
 .tx-item{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #1e293b;font-size:0.85rem;}
 .grid{display:grid;gap:16px;}
 @media(min-width:768px){.grid{grid-template-columns:1fr 1fr;}}
-
-/* Receipts */
-.receipt-box { background: #fff; color: #000; padding: 20px; border-radius: 4px; font-family: 'Space Mono', monospace; font-size: 0.75rem; }
-.receipt-header { border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; text-align: center; }
-.receipt-line { display: flex; justify-content: space-between; margin: 4px 0; }
-.receipt-total { border-top: 1px solid #000; margin-top: 10px; padding-top: 8px; font-weight: 800; font-size: 0.9rem; }
 
 .profile-img { width: 60px; height: 60px; background: var(--accent); border-radius: 50%; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
 </style>
@@ -77,9 +60,9 @@ input,select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--b
         <div class="auth-card">
             <h3>Merchant Onboarding</h3>
             <label>Business Name</label>
-            <input type="text" id="regName" placeholder="Zuri Fashions Ltd">
+            <input type="text" id="regName" placeholder="Business Ltd">
             <label>Settlement Wallet (Till / Phone)</label>
-            <input type="text" id="regWallet" placeholder="e.g. 5442211 or 07xx">
+            <input type="text" id="regWallet" placeholder="e.g. 5442211">
             <label>Business Email</label>
             <input type="email" id="regEmail" placeholder="admin@biz.com">
             <label>Create PIN (4 Digits)</label>
@@ -96,7 +79,7 @@ input,select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--b
         <div class="auth-card">
             <h3>Merchant Login</h3>
             <label>Business Email</label>
-            <input id="loginEmail" type="email" placeholder="admin@zuri.africa">
+            <input id="loginEmail" type="email" placeholder="admin@biz.com">
             <label>Access PIN</label>
             <input id="loginPin" type="password" maxlength="4" placeholder="****">
             <button class="btn-primary" onclick="handleLogin()">Unlock Dashboard</button>
@@ -122,7 +105,7 @@ input,select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--b
         </div>
 
         <div class="card">
-            <div class="card-title">💰 Liquid Cash <span onclick="toggleBalances()" style="cursor:pointer">👁</span></div>
+            <div class="card-title">💰 Liquid Cash</div>
             <div class="bal-row">
                 <div class="bal-item">
                     <label>FIAT (KES)</label>
@@ -132,13 +115,6 @@ input,select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--b
                     <label>CRYPTO (USDT)</label>
                     <div class="bal-sub" id="cryptoBal">0.00</div>
                 </div>
-            </div>
-        </div>
-
-        <div class="card" style="border-color:var(--vault-color);">
-            <div class="card-title" style="color:var(--vault-color)">🔒 Locked Savings</div>
-            <div style="text-align:center;padding:10px 0;">
-                <div style="font-size:2.2rem;font-weight:800;color:var(--vault-color);" id="vaultBal">KES 0.00</div>
             </div>
         </div>
 
@@ -160,27 +136,24 @@ input,select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--b
 </div>
 
 <div class="modal" id="payModal">
-    <div class="modal-inner" style="text-align:center;">
+    <div class="modal-inner" style="text-align:center; padding: 25px;">
         <h2 style="color:var(--accent)">STK PUSH SENT</h2>
-        <p id="pDesc" style="margin:20px 0;"></p>
+        <p id="pDesc" style="margin:20px 0; color: white;"></p>
         <button class="btn-primary" onclick="confirmPayment()">Verify Success</button>
         <button class="btn-ghost" onclick="closeModals()">Cancel</button>
     </div>
 </div>
 
 <script>
-// AUTO-DETECT BASE URL
-const BASE_URL = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" 
-    ? "http://localhost:10000" 
-    : "https://koby-11.onrender.com";
+// LIVE RENDER URL
+const BASE_URL = "https://koby-11.onrender.com";
 
 let state = {
     user: null,
-    tx: [],
-    balancesVisible: true
+    tx: []
 };
 
-// --- AUTH HANDLERS ---
+// --- AUTH ---
 async function handleSignup() {
     const payload = {
         name: document.getElementById('regName').value,
@@ -202,16 +175,13 @@ async function handleSignup() {
             alert(data.error);
         }
     } catch(e) {
-        alert("Server connection failed. Check if Backend is live on Render.");
+        alert("Server connection failed. Check your Render URL.");
     }
 }
 
 async function handleLogin() {
     const email = document.getElementById('loginEmail').value;
     const pin = document.getElementById('loginPin').value;
-    
-    if(!email || !pin) return alert("Please fill all fields");
-
     try {
         const res = await fetch(`${BASE_URL}/api/login`, {
             method: 'POST',
@@ -226,15 +196,14 @@ async function handleLogin() {
             alert(data.error || "Login Failed");
         }
     } catch(e) {
-        alert("Authentication failed. Check your server connection.");
+        alert("Authentication failed.");
     }
 }
 
-// --- PAYMENT HANDLERS ---
+// --- PAYMENTS ---
 async function initiatePayment() {
     const amt = document.getElementById('termAmt').value;
     const phone = document.getElementById('termPhone').value;
-    
     if(!phone) return alert("Enter customer phone");
 
     try {
@@ -245,12 +214,12 @@ async function initiatePayment() {
         });
         const data = await res.json();
         if(data.success) {
-            document.getElementById('pDesc').innerText = `Checking for KES ${amt} on ${phone}...`;
+            document.getElementById('pDesc').innerText = `STK Push sent to ${phone} for KES ${amt}`;
             openModal('payModal');
             state.pendingAmt = amt;
         }
     } catch(e) {
-        alert("Payment gateway unreachable.");
+        alert("Gateway unreachable.");
     }
 }
 
@@ -273,26 +242,19 @@ async function confirmPayment() {
     }
 }
 
-// --- UI UTILS ---
+// --- UTILS ---
 function updateUI() {
     if(!state.user) return;
     document.getElementById('merchantTitle').innerText = state.user.name;
     document.getElementById('walletInfo').innerText = `Wallet: ${state.user.wallet}`;
+    document.getElementById('fiatBal').innerText = (state.user.fiatBalance || 0).toLocaleString();
+    document.getElementById('cryptoBal').innerText = (state.user.cryptoBalance || 0) + " USDT";
     
-    document.getElementById('fiatBal').innerText = state.balancesVisible ? state.user.fiatBalance.toLocaleString() : "****";
-    document.getElementById('cryptoBal').innerText = state.balancesVisible ? (state.user.cryptoBalance + " USDT") : "****";
-    document.getElementById('vaultBal').innerText = "KES " + state.user.vaultBalance.toLocaleString();
-
     document.getElementById('ledger').innerHTML = state.tx.map(t => `
         <div class="tx-item">
             <div><strong>${t.type}</strong><br><small>${t.time}</small></div>
             <div style="color:var(--accent)">+${parseFloat(t.amt).toLocaleString()}</div>
         </div>`).join('');
-}
-
-function toggleBalances() {
-    state.balancesVisible = !state.balancesVisible;
-    updateUI();
 }
 
 function navigateTo(p) {
