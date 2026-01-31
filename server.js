@@ -11,7 +11,7 @@ app.use(bodyParser.json());
 
 // 1. MONGODB CONNECTION
 // Replace the string below with your Atlas URI
-const mongoURI =  "mongodb+srv://gilliannyangaga95_db_user:pgcgXSNfeflpvoKk@cluster0.mongodb.net/lipa_sme?retryWrites=true&w=majority"
+const mongoURI =  'mongodb+srv://gilliannyangaga95_db_user:pgcgXSNfeflpvoKk@cluster0.mongodb.net/lipa_sme?retryWrites=true&w=majority'
 .6vqjwsd.mongodb.net/?appName=Cluster0;
 
 mongoose.connect(mongoURI)
