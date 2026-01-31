@@ -7,7 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Space+Mono&display=swap" rel="stylesheet">
 <style>
-/* PRESERVING ALL ORIGINAL STYLING */
 :root {
     --bg:#020617; --card:#0f172a; --text:#f8fafc;
     --accent:#10b981; --crypto:#f59e0b; --vault-color:#8b5cf6;
@@ -49,7 +48,6 @@ input,select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--b
 .grid{display:grid;gap:16px;}
 @media(min-width:768px){.grid{grid-template-columns:1fr 1fr;}}
 
-/* RECEIPT STYLING */
 .receipt-box { background: #fff; color: #000; padding: 20px; border-radius: 4px; font-family: 'Space Mono', monospace; font-size: 0.75rem; box-shadow: 0 10px 20px rgba(0,0,0,0.4); }
 .receipt-header { border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; text-align: center; }
 .receipt-line { display: flex; justify-content: space-between; margin: 4px 0; }
@@ -72,8 +70,8 @@ input,select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--b
             <h3>Merchant Onboarding</h3>
             <label>Business Name</label>
             <input type="text" id="regName" placeholder="Zuri Fashions Ltd">
-            <label>M-Pesa Number (Settlement)</label>
-            <input type="text" id="regWallet" placeholder="07xxxxxxxx">
+            <label>Settlement Wallet (Till / Phone)</label>
+            <input type="text" id="regWallet" placeholder="e.g. 5442211 or 07xx">
             <label>Business Email</label>
             <input type="email" id="regEmail" placeholder="admin@biz.com">
             <label>Create PIN (4 Digits)</label>
@@ -176,11 +174,14 @@ input,select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--b
                 <label>Payment Method</label>
                 <select id="termMeth">
                     <optgroup label="Mobile Wallets">
-                        <option value="M-Pesa">M-Pesa (Daraja Push)</option>
+                        <option value="M-Pesa">M-Pesa</option>
                         <option value="Airtel Money">Airtel Money</option>
+                        <option value="T-Cash">T-Cash</option>
+                        <option value="MTN MoMo">MTN MoMo</option>
                     </optgroup>
                     <optgroup label="Digital & Card">
                         <option value="Apple Pay">Apple Pay</option>
+                        <option value="Google Pay">Google Pay</option>
                         <option value="Visa/Mastercard">Visa/Mastercard</option>
                     </optgroup>
                 </select>
@@ -253,29 +254,22 @@ input,select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--b
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
 <script>
-const BASE_URL = ""; // Automatically points to current server
-const FX = { KES:1, USD:132.5, USDT:132.5, GBP:168.0, EUR:142.0, NGN:0.08, ZAR:7.1, GHS:10.5, RWF:0.11 };
+const BASE_URL = ""; 
 
+const FX = { KES:1, USD:132.5, USDT:132.5, GBP:168.0, EUR:142.0, NGN:0.08, ZAR:7.1, GHS:10.5, RWF:0.11 };
 let state = {
-    user: null,
-    fiat: 0,
-    cryptoUSDT: 0,
-    vault: 0,
-    tx: [],
-    volData: { KES: 0, USD: 0, USDT: 0, EUR: 0, NGN: 0, ZAR: 0 }
+    user: null, fiat: 25000, cryptoUSDT: 50, vault: 80000, tx: [],
+    volData: { KES: 12000, USD: 8500, USDT: 4200, EUR: 3100, NGN: 1500, ZAR: 2200 }
 };
 
 let activeTx = null, balancesVisible = true, vaultVisible = true;
 
-// --- AUTHENTICATION ---
 async function handleSignup() {
     const name = document.getElementById('regName').value;
     const wallet = document.getElementById('regWallet').value;
     const email = document.getElementById('regEmail').value;
     const pin = document.getElementById('regPin').value;
-
     if(!name || !email || !pin) return alert("All fields required");
-
     try {
         const res = await fetch(`${BASE_URL}/api/signup`, {
             method: 'POST',
@@ -283,17 +277,14 @@ async function handleSignup() {
             body: JSON.stringify({ name, wallet, email, pin })
         });
         const data = await res.json();
-        if (data.success) {
-            alert('✅ Merchant Profile Created!');
-            navigateTo('loginPage');
-        } else { alert(data.error); }
+        if (data.success) { alert('✅ Merchant Profile Created!'); navigateTo('loginPage'); }
+        else alert(data.error);
     } catch (err) { alert('Server connection failed.'); }
 }
 
 async function handleLogin() {
     const email = document.getElementById('loginEmail').value;
     const pin = document.getElementById('loginPin').value;
-
     try {
         const res = await fetch(`${BASE_URL}/api/login`, {
             method: 'POST',
@@ -301,119 +292,118 @@ async function handleLogin() {
             body: JSON.stringify({ email, pin })
         });
         const data = await res.json();
-        if (data.success) {
-            state.user = data.merchant; 
-            syncWithDatabase();
-            navigateTo('dashboardPage');
-            setInterval(syncWithDatabase, 10000); // Polling for new payments
-        } else { alert(data.error); }
-    } catch (err) { alert('Authentication offline.'); }
+        if (data.success) { state.user = data.merchant; navigateTo('dashboardPage'); }
+        else alert(data.error);
+    } catch (err) { alert('Authentication server offline.'); }
 }
 
-// --- LIVE DARAJA & DATA SYNC ---
-async function syncWithDatabase() {
-    if (!state.user) return;
+async function confirmPayment() {
+    if (!activeTx) return;
     try {
-        const res = await fetch(`${BASE_URL}/api/balance/${state.user.email}`);
-        const data = await res.json();
-        state.fiat = data.fiat;
-        state.vault = data.vault;
-        state.cryptoUSDT = data.cryptoUSDT;
-        state.tx = data.history || [];
-        updateUI();
-    } catch (e) { console.log("Sync error"); }
+        const res = await fetch(`${BASE_URL}/api/payment`, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({
+                email: state.user.email, wallet: state.user.wallet,
+                amount: activeTx.amt, method: activeTx.meth
+            })
+        });
+        const result = await res.json();
+        if(!result.success) throw new Error("Sync failed");
+        if(activeTx.cur === "USDT") state.cryptoUSDT += activeTx.amt;
+        else state.fiat += activeTx.localAmt;
+        state.volData[activeTx.cur] = (state.volData[activeTx.cur] || 0) + activeTx.localAmt;
+        state.tx.unshift({type: activeTx.meth, time: new Date().toLocaleTimeString(), localAmt: activeTx.localAmt, flow: 'IN'});
+        closeModals(); updateUI();
+        popReceipt({type: activeTx.meth, inputAmt: activeTx.amt, cur: activeTx.cur, localAmt: activeTx.localAmt});
+    } catch(err) { alert('Transaction sync failed.'); }
 }
 
-async function initiatePayment() {
-    const amt = parseFloat(document.getElementById('termAmt').value);
-    const cur = document.getElementById('termCur').value;
-    const method = document.getElementById('termMeth').value;
-
-    if (method === "M-Pesa") {
-        alert("Triggering M-Pesa STK Push for " + amt + " KES...");
-        try {
-            const res = await fetch(`${BASE_URL}/api/stkpush`, {
-                method: 'POST',
-                headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({ email: state.user.email, amount: amt })
-            });
-            const result = await res.json();
-            if(result.success) {
-                alert("Prompt sent to " + state.user.wallet + ". Please enter PIN on phone.");
-            } else { alert("Push Failed: " + result.error); }
-        } catch (e) { alert("Daraja Gateway Error"); }
-    } else {
-        // ORIGINAL STATIC QR LOGIC FOR OTHER METHODS
-        activeTx = { ref: "L-"+Math.random().toString(36).substr(2,5).toUpperCase(), amt, cur, meth: method, localAmt: (amt * FX[cur]), target: state.user.wallet };
-        document.getElementById('pDesc').innerText = `PAY: ${amt} ${cur}`;
-        document.getElementById('targetWallet').innerText = activeTx.target;
-        document.getElementById('qrCode').innerHTML = '';
-        const q = new QRious({ element: document.createElement('canvas'), value: activeTx.ref, size: 200 });
-        document.getElementById('qrCode').appendChild(q.image);
-        openModal('payModal');
-    }
+function exportCSV() {
+    if(state.tx.length === 0) return alert("No data");
+    let csv = "Time,Method,Amount,Flow\n";
+    state.tx.forEach(t => csv += `${t.time},${t.type},${t.localAmt},${t.flow}\n`);
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'lipa_ledger.csv'; a.click();
 }
 
-// --- DASHBOARD UTILITIES ---
-function updateUI() {
-    if(!state.user) return;
-    document.getElementById('merchantTitle').innerText = state.user.name;
-    document.getElementById('walletInfo').innerText = `Route: ${state.user.wallet} • Verified`;
-    document.getElementById('fiatBal').innerText = balancesVisible ? state.fiat.toLocaleString() : "****";
-    document.getElementById('cryptoBal').innerText = balancesVisible ? state.cryptoUSDT.toFixed(2) + " USDT" : "****";
-    document.getElementById('vaultBal').innerText = vaultVisible ? ("KES " + state.vault.toLocaleString()) : "****";
-    
-    // Chart Update
-    const chart = document.getElementById('analysisChart'); 
-    chart.innerHTML = '';
-    const maxVal = Math.max(...Object.values(state.volData), 1000);
-    ['KES', 'USD', 'USDT', 'EUR', 'NGN', 'ZAR'].forEach(cur => {
-        const val = state.volData[cur] || 0;
-        const h = (val / maxVal) * 100;
-        chart.innerHTML += `<div class="bar-wrap"><div class="bar" style="height:${h}%"></div><span class="bar-label">${cur}</span></div>`;
-    });
-
-    // Ledger Update
-    document.getElementById('ledger').innerHTML = state.tx.slice().reverse().slice(0,5).map(t => `
-        <div class="tx-item">
-            <div><strong>${t.type}</strong><br><small>${new Date(t.date).toLocaleTimeString()}</small></div>
-            <div style="color:${t.flow==='IN'?'var(--accent)':'var(--danger)'}">${t.flow==='IN'?'+':'-'}${t.amount.toLocaleString()}</div>
-        </div>`).join('') || '<p style="text-align:center;color:var(--muted)">No transactions</p>';
-}
-
-// --- ORIGINAL BUTTON LOGIC ---
 function runLiveFx() {
     const val = parseFloat(document.getElementById('termAmt').value) || 0;
     const cur = document.getElementById('termCur').value;
     document.getElementById('liveFxOutput').innerText = `Settles as: ${(val * FX[cur]).toLocaleString()} KES`;
 }
 
-async function confirmPayment() {
-    // Manual confirmation for non-Daraja methods
-    if (!activeTx) return;
-    state.tx.push({type: activeTx.meth, amount: activeTx.localAmt, flow: 'IN', date: new Date()});
-    state.fiat += activeTx.localAmt;
-    closeModals();
-    updateUI();
+function popReceipt(data) {
+    const html = `<div class="receipt-header"><h2>LIPA SME</h2></div><div class="receipt-line"><span>DATE:</span> <span>${new Date().toLocaleString()}</span></div><div class="receipt-line"><span>METHOD:</span> <span>${data.type}</span></div><div class="receipt-total"><span>SETTLED:</span> <span>${data.localAmt.toLocaleString()} KES</span></div>`;
+    document.getElementById('receiptContent').innerHTML = html;
+    openModal('receiptModal');
+}
+
+function updateUI() {
+    if(!state.user) return;
+    document.getElementById('merchantTitle').innerText = state.user.name;
+    document.getElementById('walletInfo').innerText = `Route: ${state.user.wallet}`;
+    document.getElementById('fiatBal').innerText = balancesVisible ? state.fiat.toLocaleString() : "****";
+    document.getElementById('cryptoBal').innerText = balancesVisible ? state.cryptoUSDT.toFixed(2) + " USDT" : "****";
+    document.getElementById('vaultBal').innerText = vaultVisible ? ("KES " + state.vault.toLocaleString()) : "****";
+    const chart = document.getElementById('analysisChart'); chart.innerHTML = '';
+    const maxVal = Math.max(...Object.values(state.volData), 1000);
+    ['KES', 'USD', 'USDT', 'EUR', 'NGN', 'ZAR'].forEach(cur => {
+        const h = ((state.volData[cur] || 0) / maxVal) * 100;
+        chart.innerHTML += `<div class="bar-wrap"><div class="bar" style="height:${h}%"></div><span class="bar-label">${cur}</span></div>`;
+    });
+    document.getElementById('ledger').innerHTML = state.tx.slice(0,5).map(t => `<div class="tx-item"><div><strong>${t.type}</strong></div><div style="color:${t.flow==='IN'?'var(--accent)':'var(--danger)'}">${t.flow==='IN'?'+':'-'}${t.localAmt.toLocaleString()}</div></div>`).join('') || '<p>No transactions</p>';
+}
+
+function executeSwap() {
+    const dir = document.getElementById('swapDir').value;
+    const amt = parseFloat(document.getElementById('swapAmt').value);
+    if(!amt || amt <= 0) return alert("Invalid amount");
+    if(dir === "K2C" && state.fiat < amt) return alert("Low balance");
+    if(dir === "K2C") { state.fiat -= amt; state.cryptoUSDT += (amt / FX.USDT); }
+    else { state.cryptoUSDT -= amt; state.fiat += (amt * FX.USDT); }
+    closeModals(); updateUI();
+}
+
+function executeWithdrawal() {
+    const amt = parseFloat(document.getElementById('wdAmt').value);
+    if(document.getElementById('wdPin').value !== state.user.pin) return alert("Wrong PIN");
+    state.fiat -= amt; closeModals(); updateUI();
+}
+
+function executeVaultUnlock() {
+    const amt = parseFloat(document.getElementById('vMoveAmt').value);
+    if(document.getElementById('vPin').value !== state.user.pin) return alert("Wrong PIN");
+    state.vault -= amt; state.fiat += amt; closeModals(); updateUI();
 }
 
 function processEndOfBusiness() {
-    if(state.fiat <= 0) return alert("No cash to settle");
     const saveAmt = state.fiat * 0.15;
-    state.fiat -= saveAmt; state.vault += saveAmt;
-    alert("Day closed. 15% Vaulted.");
-    updateUI();
+    state.fiat -= saveAmt; state.vault += saveAmt; updateUI();
 }
 
+function initiatePayment() {
+    const amt = parseFloat(document.getElementById('termAmt').value);
+    const cur = document.getElementById('termCur').value;
+    activeTx = { ref: "L-"+Math.random().toString(36).substr(2,5).toUpperCase(), amt, cur, meth: document.getElementById('termMeth').value, localAmt: (amt * FX[cur]), target: state.user.wallet };
+    document.getElementById('pDesc').innerText = `PAY: ${amt} ${cur}`;
+    document.getElementById('targetWallet').innerText = activeTx.target;
+    document.getElementById('qrCode').innerHTML = '';
+    const q = new QRious({ element: document.createElement('canvas'), value: activeTx.ref, size: 200 });
+    document.getElementById('qrCode').appendChild(q.image);
+    openModal('payModal');
+}
+
+document.getElementById('termAmt').addEventListener('input', runLiveFx);
+document.getElementById('termCur').addEventListener('change', runLiveFx);
 function navigateTo(p) { document.querySelectorAll('.page').forEach(x => x.classList.remove('active-page')); document.getElementById(p).classList.add('active-page'); if(state.user) updateUI(); }
 function logout() { state.user = null; navigateTo('loginPage'); }
 function openModal(id) { document.getElementById(id).style.display = 'flex'; }
 function closeModals() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
 function toggleBalances() { balancesVisible = !balancesVisible; updateUI(); }
 function toggleVault() { vaultVisible = !vaultVisible; updateUI(); }
-
-document.getElementById('termAmt').addEventListener('input', runLiveFx);
-document.getElementById('termCur').addEventListener('change', runLiveFx);
 </script>
 </body>
 </html>
