@@ -11,26 +11,35 @@
     --bg:#020617; --card:#0f172a; --text:#f8fafc;
     --accent:#10b981; --crypto:#f59e0b; --vault-color:#8b5cf6;
     --border:#1e293b; --muted:#94a3b8; --danger:#ef4444;
+    --incentive:#3b82f6;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);padding:12px;line-height:1.4;}
 .container{max-width:1100px;margin:0 auto;padding-bottom:80px;}
 .page { display: none; }
 .active-page { display: block; }
+
+/* Dashboard UI */
 h1{font-size:1.4rem;font-weight:800;letter-spacing:-1px;}
 .tagline{font-size:0.8rem;color:var(--muted);margin-bottom:20px;}
 .auth-container { max-width: 400px; margin: 60px auto; text-align: center; }
 .auth-card { background: var(--card); border: 1px solid var(--border); padding: 30px; border-radius: 28px; }
 .card{background:var(--card);border:1px solid var(--border);border-radius:28px;padding:22px;margin-bottom:16px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.3);}
 .card-title{font-size:0.7rem;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;}
+
 .bal-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:15px;}
 .bal-item{background:rgba(0,0,0,0.3);padding:15px;border-radius:20px;border:1px solid var(--border);}
 .bal-val{font-size:1.6rem;font-weight:800;color:var(--accent);}
 .bal-sub{font-family:'Space Mono';font-size:0.85rem;color:var(--crypto);}
+
+/* Analytics & Incentives Bars */
 .analytics-container { display: flex; align-items: flex-end; justify-content: space-around; height: 120px; padding-top: 15px; border-top: 1px solid var(--border); }
 .bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .bar { width: 15px; background: var(--accent); border-radius: 4px 4px 0 0; transition: height 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); min-height: 2px; }
+.bar.incentive-bar { background: var(--incentive); }
 .bar-label { font-size: 0.6rem; font-weight: 800; color: var(--muted); }
+
+/* Buttons & Inputs */
 button{width:100%;padding:16px;border:none;border-radius:16px;font-weight:700;cursor:pointer;transition:0.2s;font-size:0.95rem; margin-bottom: 8px;}
 button:active{transform:scale(0.98);}
 .btn-primary{background:var(--accent);color:#064e3b;}
@@ -40,16 +49,18 @@ button:active{transform:scale(0.98);}
 .btn-logout{background:var(--danger);color:white; font-size: 0.7rem; padding: 8px 12px; width: auto; border-radius: 8px;}
 .btn-ghost{background:none; color: var(--accent); text-decoration: underline; font-size: 0.85rem;}
 .btn-settle { background: #334155; color: #f1f5f9; border: 1px dashed var(--muted); }
+
 .modal{position:fixed;inset:0;background:rgba(0,0,0,0.95);display:none;align-items:center;justify-content:center;z-index:1000;padding:15px;backdrop-filter:blur(10px);}
 .modal-inner{background:#1e293b;border:1px solid var(--border);width:100%;max-width:400px;padding:25px;border-radius:32px;overflow-y:auto;max-height:90vh;}
 label{display:block;font-size:0.7rem;color:var(--muted);margin:12px 0 4px;}
 input,select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--border);background:#020617;color:white;font-size:1rem;margin-bottom:10px;}
+
 .tx-item{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #1e293b;font-size:0.85rem;}
 .grid{display:grid;gap:16px;}
 @media(min-width:768px){.grid{grid-template-columns:1fr 1fr;}}
 
-/* RECEIPT STYLING */
-.receipt-box { background: #fff; color: #000; padding: 20px; border-radius: 4px; font-family: 'Space Mono', monospace; font-size: 0.75rem; box-shadow: 0 10px 20px rgba(0,0,0,0.4); }
+/* Receipts */
+.receipt-box { background: #fff; color: #000; padding: 20px; border-radius: 4px; font-family: 'Space Mono', monospace; font-size: 0.75rem; }
 .receipt-header { border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; text-align: center; }
 .receipt-line { display: flex; justify-content: space-between; margin: 4px 0; }
 .receipt-total { border-top: 1px solid #000; margin-top: 10px; padding-top: 8px; font-weight: 800; font-size: 0.9rem; }
@@ -116,8 +127,13 @@ input,select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--b
         </div>
 
         <div class="card">
-            <div class="card-title">📊 Revenue Dashboard <span>Direct Settlement Analytics</span></div>
+            <div class="card-title">📊 Revenue Analytics <span>24h Transaction Volume</span></div>
             <div class="analytics-container" id="analysisChart"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title" style="color:var(--incentive)">🏆 Loyalty Incentives <span>Earning 0.5% Cash-back</span></div>
+            <div class="analytics-container" id="incentiveChart"></div>
         </div>
 
         <div class="card">
@@ -143,7 +159,7 @@ input,select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--b
             <div class="card-title" style="color:var(--vault-color)">🔒 Locked Savings <span class="eye-toggle" onclick="toggleVault()">👁</span></div>
             <div style="text-align:center;padding:10px 0;">
                 <div style="font-size:2.2rem;font-weight:800;color:var(--vault-color);" id="vaultBal">KES 0.00</div>
-                <p style="color:var(--muted);font-size:0.75rem;">Funds protected from daily spending</p>
+                <p style="color:var(--muted);font-size:0.75rem;">Protected Fund Reserve</p>
             </div>
             <button class="btn-vault" onclick="openModal('vaultOutModal')">Unlock & Move Funds</button>
         </div>
@@ -155,46 +171,18 @@ input,select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--b
                 <input id="termAmt" type="number" value="100">
                 <label>Customer Currency</label>
                 <select id="termCur">
-                    <optgroup label="Global">
-                        <option value="KES">KES (Kenya Shilling)</option>
-                        <option value="USD">USD (US Dollar)</option>
-                        <option value="GBP">GBP (British Pound)</option>
-                        <option value="EUR">EUR (Euro)</option>
-                    </optgroup>
-                    <optgroup label="African Regional">
-                        <option value="NGN">NGN (Nigerian Naira)</option>
-                        <option value="ZAR">ZAR (SA Rand)</option>
-                        <option value="GHS">GHS (Ghana Cedi)</option>
-                        <option value="RWF">RWF (Rwanda Franc)</option>
-                    </optgroup>
-                    <optgroup label="Stablecoins">
-                        <option value="USDT">USDT (Tether)</option>
-                    </optgroup>
+                    <option value="KES">KES (Kenya Shilling)</option>
+                    <option value="USD">USD (US Dollar)</option>
+                    <option value="USDT">USDT (Tether)</option>
+                    <option value="GBP">GBP (British Pound)</option>
                 </select>
-                
                 <span class="fx-live-tag" id="liveFxOutput">Settles as: 100.00 KES</span>
-
                 <label>Payment Method</label>
                 <select id="termMeth">
-                    <optgroup label="Mobile Wallets">
-                        <option value="M-Pesa">M-Pesa</option>
-                        <option value="Airtel Money">Airtel Money</option>
-                        <option value="T-Cash">T-Cash</option>
-                        <option value="MTN MoMo">MTN MoMo</option>
-                    </optgroup>
-                    <optgroup label="Digital & Card">
-                        <option value="Apple Pay">Apple Pay</option>
-                        <option value="Google Pay">Google Pay</option>
-                        <option value="Visa/Mastercard">Visa/Mastercard</option>
-                    </optgroup>
-                    <optgroup label="Direct Bank Transfer">
-                        <option value="KCB Bank">KCB Bank</option>
-                        <option value="UBA Bank">UBA Bank</option>
-                        <option value="Equity Bank">Equity Bank</option>
-                        <option value="Standard Chartered">Standard Chartered</option>
-                    </optgroup>
+                    <option value="M-Pesa">M-Pesa (Daraja)</option>
+                    <option value="USDT-Pay">USDT Direct</option>
                 </select>
-                <button class="btn-primary" onclick="initiatePayment()">Generate Payment Link</button>
+                <button class="btn-primary" onclick="initiatePayment()">Generate Payment Request</button>
             </div>
 
             <div class="card">
@@ -207,12 +195,25 @@ input,select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--b
 
 <div class="modal" id="payModal">
     <div class="modal-inner" style="text-align:center;">
-        <h2 id="pTitle" style="color:var(--accent); font-weight:800; font-size:1.8rem;">SECURE GATEWAY</h2>
+        <h2 style="color:var(--accent)">STK PUSH GATEWAY</h2>
         <div id="qrCode" style="margin:20px 0; display: flex; justify-content: center;"></div>
-        <div class="scan-tag">SETTLING TO: <span id="targetWallet"></span></div>
-        <p id="pDesc" style="font-size:1.4rem; font-weight:800; color:var(--text); margin-top:15px;"></p>
-        <button class="btn-primary" onclick="confirmPayment()">Verify & Sync Ledger</button>
-        <button class="btn-secondary" style="margin-top:10px;background:none;color:white;" onclick="closeModals()">Cancel</button>
+        <p id="pDesc" style="font-size:1.4rem; font-weight:800; margin-top:15px;"></p>
+        <button class="btn-primary" onclick="confirmPayment()">Verify M-Pesa Sync</button>
+        <button class="btn-ghost" onclick="closeModals()">Cancel</button>
+    </div>
+</div>
+
+<div class="modal" id="withdrawModal">
+    <div class="modal-inner">
+        <h2>🏧 Instant Withdrawal</h2>
+        <label>M-Pesa / Till Number</label>
+        <input id="wdAccount" type="text" placeholder="e.g. 2547XXXXXXXX">
+        <label>Amount (KES)</label>
+        <input id="wdAmt" type="number" placeholder="0.00">
+        <label>Confirm PIN</label>
+        <input id="wdPin" type="password" maxlength="4" placeholder="****">
+        <button class="btn-primary" onclick="executeWithdrawal()">Process Cashout</button>
+        <button class="btn-ghost" onclick="closeModals()">Cancel</button>
     </div>
 </div>
 
@@ -224,21 +225,6 @@ input,select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--b
         <label>Amount</label>
         <input id="swapAmt" type="number" placeholder="0.00">
         <button class="btn-primary" onclick="executeSwap()">Execute Swap</button>
-        <button class="btn-secondary" style="background:none;color:white;" onclick="closeModals()">Cancel</button>
-    </div>
-</div>
-
-<div class="modal" id="withdrawModal">
-    <div class="modal-inner">
-        <h2>🏧 Withdrawal</h2>
-        <label>Account / Wallet Number</label>
-        <input id="wdAccount" type="text" placeholder="e.g. 0712345678">
-        <label>Amount (KES)</label>
-        <input id="wdAmt" type="number" placeholder="0.00">
-        <label>Confirm PIN</label>
-        <input id="wdPin" type="password" maxlength="4" placeholder="****">
-        <button class="btn-primary" onclick="executeWithdrawal()">Process Withdrawal</button>
-        <button class="btn-secondary" style="background:none;color:white;" onclick="closeModals()">Cancel</button>
     </div>
 </div>
 
@@ -250,262 +236,6 @@ input,select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--b
         <label>Security PIN</label>
         <input id="vPin" type="password" maxlength="4" placeholder="****">
         <button class="btn-vault" onclick="executeVaultUnlock()">Unlock & Transfer</button>
-        <button class="btn-secondary" style="background:none;color:white;" onclick="closeModals()">Cancel</button>
-    </div>
-</div>
-
-<div class="modal" id="receiptModal">
-    <div class="modal-inner">
-        <div class="receipt-box" id="receiptContent"></div>
-        <button class="btn-primary" style="margin-top:20px;" onclick="closeModals()">Print & Close</button>
-    </div>
-</div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>LIPA • SME Pan-African Hub 2026</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Space+Mono&display=swap" rel="stylesheet">
-<style>
-:root {
-    --bg:#020617; --card:#0f172a; --text:#f8fafc;
-    --accent:#10b981; --crypto:#f59e0b; --vault-color:#8b5cf6;
-    --border:#1e293b; --muted:#94a3b8; --danger:#ef4444;
-}
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);padding:12px;line-height:1.4;}
-.container{max-width:1100px;margin:0 auto;padding-bottom:80px;}
-.page { display: none; }
-.active-page { display: block; }
-h1{font-size:1.4rem;font-weight:800;letter-spacing:-1px;}
-.tagline{font-size:0.8rem;color:var(--muted);margin-bottom:20px;}
-.auth-container { max-width: 400px; margin: 60px auto; text-align: center; }
-.auth-card { background: var(--card); border: 1px solid var(--border); padding: 30px; border-radius: 28px; }
-.card{background:var(--card);border:1px solid var(--border);border-radius:28px;padding:22px;margin-bottom:16px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.3);}
-.card-title{font-size:0.7rem;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;}
-.bal-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:15px;}
-.bal-item{background:rgba(0,0,0,0.3);padding:15px;border-radius:20px;border:1px solid var(--border);}
-.bal-val{font-size:1.6rem;font-weight:800;color:var(--accent);}
-.bal-sub{font-family:'Space Mono';font-size:0.85rem;color:var(--crypto);}
-.analytics-container { display: flex; align-items: flex-end; justify-content: space-around; height: 120px; padding-top: 15px; border-top: 1px solid var(--border); }
-.bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.bar { width: 15px; background: var(--accent); border-radius: 4px 4px 0 0; transition: height 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); min-height: 2px; }
-.bar-label { font-size: 0.6rem; font-weight: 800; color: var(--muted); }
-button{width:100%;padding:16px;border:none;border-radius:16px;font-weight:700;cursor:pointer;transition:0.2s;font-size:0.95rem; margin-bottom: 8px;}
-button:active{transform:scale(0.98);}
-.btn-primary{background:var(--accent);color:#064e3b;}
-.btn-vault{background:var(--vault-color);color:white;}
-.btn-swap{background:#1e293b;color:var(--crypto);border:1px solid var(--crypto);}
-.btn-withdraw{background:#1e293b;color:white;border:1px solid var(--border);}
-.btn-logout{background:var(--danger);color:white; font-size: 0.7rem; padding: 8px 12px; width: auto; border-radius: 8px;}
-.btn-ghost{background:none; color: var(--accent); text-decoration: underline; font-size: 0.85rem;}
-.btn-settle { background: #334155; color: #f1f5f9; border: 1px dashed var(--muted); }
-.modal{position:fixed;inset:0;background:rgba(0,0,0,0.95);display:none;align-items:center;justify-content:center;z-index:1000;padding:15px;backdrop-filter:blur(10px);}
-.modal-inner{background:#1e293b;border:1px solid var(--border);width:100%;max-width:400px;padding:25px;border-radius:32px;overflow-y:auto;max-height:90vh;}
-label{display:block;font-size:0.7rem;color:var(--muted);margin:12px 0 4px;}
-input,select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--border);background:#020617;color:white;font-size:1rem;margin-bottom:10px;}
-.tx-item{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #1e293b;font-size:0.85rem;}
-.grid{display:grid;gap:16px;}
-@media(min-width:768px){.grid{grid-template-columns:1fr 1fr;}}
-
-.receipt-box { background: #fff; color: #000; padding: 20px; border-radius: 4px; font-family: 'Space Mono', monospace; font-size: 0.75rem; box-shadow: 0 10px 20px rgba(0,0,0,0.4); }
-.receipt-header { border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; text-align: center; }
-.receipt-line { display: flex; justify-content: space-between; margin: 4px 0; }
-.receipt-total { border-top: 1px solid #000; margin-top: 10px; padding-top: 8px; font-weight: 800; font-size: 0.9rem; }
-.fx-live-tag { font-size: 0.7rem; color: var(--accent); font-family: 'Space Mono'; display: block; margin-bottom: 10px; }
-
-.profile-img { width: 60px; height: 60px; background: var(--accent); border-radius: 50%; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
-#qrCode canvas { background: #fff; padding: 10px; border-radius: 12px; border: 4px solid var(--accent); }
-.scan-tag { font-family: 'Space Mono'; color: var(--accent); font-size: 0.7rem; margin-top: 8px; letter-spacing: 2px; }
-.eye-toggle{cursor:pointer;}
-</style>
-</head>
-<body>
-
-<div id="signupPage" class="page active-page">
-    <div class="auth-container">
-        <h1>LIPA <span style="color:var(--accent)">SME</span></h1>
-        <p class="tagline">Pan-African Settlement Hub 2026</p>
-        <div class="auth-card">
-            <h3>Merchant Onboarding</h3>
-            <label>Business Name</label>
-            <input type="text" id="regName" placeholder="Zuri Fashions Ltd">
-            <label>Settlement Wallet (Till / Phone)</label>
-            <input type="text" id="regWallet" placeholder="e.g. 5442211 or 07xx">
-            <label>Business Email</label>
-            <input type="email" id="regEmail" placeholder="admin@biz.com">
-            <label>Create PIN (4 Digits)</label>
-            <input type="password" id="regPin" maxlength="4" placeholder="****">
-            <button class="btn-primary" onclick="handleSignup()">Link Wallet & Create Account</button>
-            <p style="font-size:0.8rem; color:var(--muted)">Already a merchant? <button class="btn-ghost" onclick="navigateTo('loginPage')">Login</button></p>
-        </div>
-    </div>
-</div>
-
-<div id="loginPage" class="page">
-    <div class="auth-container">
-        <h1>LIPA <span style="color:var(--accent)">ACCESS</span></h1>
-        <div class="auth-card">
-            <h3>Merchant Login</h3>
-            <label>Business Email</label>
-            <input type="email" id="loginEmail" placeholder="admin@zuri.africa">
-            <label>Access PIN</label>
-            <input type="password" id="loginPin" maxlength="4" placeholder="****">
-            <button class="btn-primary" onclick="handleLogin()">Unlock Dashboard</button>
-            <button class="btn-ghost" onclick="navigateTo('signupPage')">New Merchant Sign-up</button>
-        </div>
-    </div>
-</div>
-
-<div id="dashboardPage" class="page">
-    <div class="container">
-        <header style="display:flex; justify-content:space-between; align-items:center; padding: 20px 0;">
-            <div>
-                <h1>LIPA <span style="color:var(--accent)">SME</span></h1>
-                <p class="tagline">Global African Settlement</p>
-            </div>
-            <button class="btn-logout" onclick="logout()">Log Out</button>
-        </header>
-
-        <div class="card" style="text-align: center; border-bottom: 3px solid var(--accent);">
-            <div class="profile-img">🏢</div>
-            <h2 id="merchantTitle">Loading...</h2>
-            <p style="color:var(--muted); font-size: 0.8rem;" id="walletInfo">Syncing with Daraja...</p>
-            <div id="walletStatus" style="font-size: 0.6rem; color: var(--accent); margin-top: 5px;">● DARAJA LIVE GATEWAY</div>
-        </div>
-
-        <div class="card">
-            <div class="card-title">📊 Revenue Dashboard <span>Direct Settlement Analytics</span></div>
-            <div class="analytics-container" id="analysisChart"></div>
-        </div>
-
-        <div class="card">
-            <div class="card-title">💰 Liquid Cash <span class="eye-toggle" onclick="toggleBalances()">👁</span></div>
-            <div class="bal-row">
-                <div class="bal-item">
-                    <label>FIAT (KES)</label>
-                    <div class="bal-val" id="fiatBal">0.00</div>
-                </div>
-                <div class="bal-item">
-                    <label>CRYPTO (USDT)</label>
-                    <div class="bal-sub" id="cryptoBal">0.00</div>
-                </div>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                <button class="btn-swap" onclick="openModal('swapModal')">💱 Swap</button>
-                <button class="btn-withdraw" onclick="openModal('withdrawModal')">🏧 Withdraw</button>
-            </div>
-            <button class="btn-settle" onclick="processEndOfBusiness()">🏁 Close Business Day (15% Vault)</button>
-        </div>
-
-        <div class="card" style="border-color:var(--vault-color);">
-            <div class="card-title" style="color:var(--vault-color)">🔒 Locked Savings <span class="eye-toggle" onclick="toggleVault()">👁</span></div>
-            <div style="text-align:center;padding:10px 0;">
-                <div style="font-size:2.2rem;font-weight:800;color:var(--vault-color);" id="vaultBal">KES 0.00</div>
-                <p style="color:var(--muted);font-size:0.75rem;">Funds protected from daily spending</p>
-            </div>
-            <button class="btn-vault" onclick="openModal('vaultOutModal')">Unlock & Move Funds</button>
-        </div>
-
-        <div class="grid">
-            <div class="card">
-                <div class="card-title">⚡ Point of Sale</div>
-                <label>Amount</label>
-                <input id="termAmt" type="number" value="100">
-                <label>Customer Currency</label>
-                <select id="termCur">
-                    <optgroup label="Global">
-                        <option value="KES">KES (Kenya Shilling)</option>
-                        <option value="USD">USD (US Dollar)</option>
-                        <option value="GBP">GBP (British Pound)</option>
-                        <option value="EUR">EUR (Euro)</option>
-                    </optgroup>
-                    <optgroup label="African Regional">
-                        <option value="NGN">NGN (Nigerian Naira)</option>
-                        <option value="ZAR">ZAR (SA Rand)</option>
-                        <option value="GHS">GHS (Ghana Cedi)</option>
-                        <option value="RWF">RWF (Rwanda Franc)</option>
-                    </optgroup>
-                    <optgroup label="Stablecoins">
-                        <option value="USDT">USDT (Tether)</option>
-                    </optgroup>
-                </select>
-                <span class="fx-live-tag" id="liveFxOutput">Settles as: 100.00 KES</span>
-                <label>Payment Method</label>
-                <select id="termMeth">
-                    <optgroup label="Mobile Wallets">
-                        <option value="M-Pesa">M-Pesa</option>
-                        <option value="Airtel Money">Airtel Money</option>
-                        <option value="T-Cash">T-Cash</option>
-                        <option value="MTN MoMo">MTN MoMo</option>
-                    </optgroup>
-                    <optgroup label="Digital & Card">
-                        <option value="Apple Pay">Apple Pay</option>
-                        <option value="Google Pay">Google Pay</option>
-                        <option value="Visa/Mastercard">Visa/Mastercard</option>
-                    </optgroup>
-                </select>
-                <button class="btn-primary" onclick="initiatePayment()">Generate Payment Link</button>
-            </div>
-
-            <div class="card">
-                <div class="card-title">📋 Direct Ledger <button onclick="exportCSV()" style="width:auto; padding: 4px 10px; font-size: 0.6rem; background: var(--border); margin:0;">Export CSV</button></div>
-                <div id="ledger"></div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="modal" id="payModal">
-    <div class="modal-inner" style="text-align:center;">
-        <h2 id="pTitle" style="color:var(--accent); font-weight:800; font-size:1.8rem;">SECURE GATEWAY</h2>
-        <div id="qrCode" style="margin:20px 0; display: flex; justify-content: center;"></div>
-        <div class="scan-tag">SETTLING TO: <span id="targetWallet"></span></div>
-        <p id="pDesc" style="font-size:1.4rem; font-weight:800; color:var(--text); margin-top:15px;"></p>
-        <button class="btn-primary" onclick="confirmPayment()">Verify & Sync Ledger</button>
-        <button class="btn-secondary" style="margin-top:10px;background:none;color:white;" onclick="closeModals()">Cancel</button>
-    </div>
-</div>
-
-<div class="modal" id="swapModal">
-    <div class="modal-inner">
-        <h2>💱 Currency Swap</h2>
-        <label>Direction</label>
-        <select id="swapDir"><option value="K2C">KES → USDT</option><option value="C2K">USDT → KES</option></select>
-        <label>Amount</label>
-        <input id="swapAmt" type="number" placeholder="0.00">
-        <button class="btn-primary" onclick="executeSwap()">Execute Swap</button>
-        <button class="btn-secondary" style="background:none;color:white;" onclick="closeModals()">Cancel</button>
-    </div>
-</div>
-
-<div class="modal" id="withdrawModal">
-    <div class="modal-inner">
-        <h2>🏧 Withdrawal</h2>
-        <label>Account / Wallet Number</label>
-        <input id="wdAccount" type="text" placeholder="e.g. 0712345678">
-        <label>Amount (KES)</label>
-        <input id="wdAmt" type="number" placeholder="0.00">
-        <label>Confirm PIN</label>
-        <input id="wdPin" type="password" maxlength="4" placeholder="****">
-        <button class="btn-primary" onclick="executeWithdrawal()">Process Withdrawal</button>
-        <button class="btn-secondary" style="background:none;color:white;" onclick="closeModals()">Cancel</button>
-    </div>
-</div>
-
-<div class="modal" id="vaultOutModal">
-    <div class="modal-inner">
-        <h2 style="color:var(--vault-color)">Unlock Vault</h2>
-        <label>Amount (KES)</label>
-        <input id="vMoveAmt" type="number" placeholder="0.00">
-        <label>Security PIN</label>
-        <input id="vPin" type="password" maxlength="4" placeholder="****">
-        <button class="btn-vault" onclick="executeVaultUnlock()">Unlock & Transfer</button>
-        <button class="btn-secondary" style="background:none;color:white;" onclick="closeModals()">Cancel</button>
     </div>
 </div>
 
@@ -518,214 +248,186 @@ input,select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--b
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
 <script>
-// --- LIVE SERVER CONFIGURATION ---
-// Change this to your live URL (e.g., https://your-app.onrender.com) when you deploy your backend
-// Inside index.html
-const BASE_URL = ""; // Empty string means "this current server"
+const BASE_URL = ""; 
+const FX = { KES:1, USD:135, USDT:135, GBP:170 };
 
-
-const FX = { KES:1, USD:132.5, USDT:132.5, GBP:168.0, EUR:142.0, NGN:0.08, ZAR:7.1, GHS:10.5, RWF:0.11 };
 let state = {
     user: null,
-    fiat: 25000,
-    cryptoUSDT: 50,
-    vault: 80000,
+    fiat: 15000,
+    cryptoUSDT: 10,
+    vault: 45000,
     tx: [],
-    volData: { KES: 12000, USD: 8500, USDT: 4200, EUR: 3100, NGN: 1500, ZAR: 2200 }
+    volData: { KES: 5000, USD: 2000, USDT: 1500, GBP: 800 },
+    incentiveData: { Mon: 20, Tue: 45, Wed: 30, Thu: 80, Fri: 120, Sat: 90, Sun: 10 }
 };
 
 let activeTx = null, balancesVisible = true, vaultVisible = true;
 
-// --- API LAYER: UPDATED FOR LIVE ACCESS ---
+// --- DARAJA & AUTH ---
 
 async function handleSignup() {
-    const name = document.getElementById('regName').value;
-    const wallet = document.getElementById('regWallet').value;
-    const email = document.getElementById('regEmail').value;
-    const pin = document.getElementById('regPin').value;
-
-    if(!name || !email || !pin) return alert("All fields required");
-
+    const payload = {
+        name: document.getElementById('regName').value,
+        wallet: document.getElementById('regWallet').value,
+        email: document.getElementById('regEmail').value,
+        pin: document.getElementById('regPin').value
+    };
     try {
         const res = await fetch(`${BASE_URL}/api/signup`, {
-            method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ name, wallet, email, pin })
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(payload)
         });
         const data = await res.json();
-        if (data.success) {
-            alert('✅ Merchant Profile Created!');
-            navigateTo('loginPage');
-        } else {
-            alert(data.error);
-        }
-    } catch (err) {
-        alert('Server connection failed. Ensure server is running at ' + BASE_URL);
-    }
+        if(data.success) navigateTo('loginPage'); else alert(data.error);
+    } catch(e) { alert("Server connection failed"); }
 }
 
 async function handleLogin() {
-    const email = document.getElementById('loginEmail').value;
-    const pin = document.getElementById('loginPin').value;
-
+    const payload = {
+        email: document.getElementById('loginEmail').value,
+        pin: document.getElementById('loginPin').value
+    };
     try {
         const res = await fetch(`${BASE_URL}/api/login`, {
-            method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ email, pin })
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(payload)
         });
         const data = await res.json();
-        if (data.success) {
-            state.user = data.merchant; 
-            navigateTo('dashboardPage');
-        } else {
-            alert(data.error);
+        if(data.success) { state.user = data.merchant; navigateTo('dashboardPage'); }
+        else alert(data.error);
+    } catch(e) { alert("Auth failed"); }
+}
+
+async function initiatePayment() {
+    const amt = parseFloat(document.getElementById('termAmt').value);
+    const cur = document.getElementById('termCur').value;
+    const phone = prompt("Enter Customer M-Pesa Number (254...):");
+    
+    if(!phone) return;
+
+    activeTx = { amt, cur, localAmt: (amt * FX[cur]), meth: "M-Pesa", phone: phone };
+    
+    // Call Daraja STK Push on Backend
+    try {
+        const res = await fetch(`${BASE_URL}/api/stkpush`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ phone: phone, amount: activeTx.localAmt, email: state.user.email })
+        });
+        const data = await res.json();
+        if(data.success) {
+            document.getElementById('pDesc').innerText = `SENDING KES ${activeTx.localAmt} REQUEST...`;
+            openModal('payModal');
         }
-    } catch (err) {
-        alert('Authentication server offline at ' + BASE_URL);
-    }
+    } catch(e) { alert("STK Push failed"); }
 }
 
 async function confirmPayment() {
-    if (!activeTx) return;
-
-    try {
-        const res = await fetch(`${BASE_URL}/api/payment`, {
-            method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({
-                email: state.user.email,
-                wallet: state.user.wallet,
-                amount: activeTx.amt,
-                method: activeTx.meth
-            })
-        });
-        
-        const result = await res.json();
-        if(!result.success) throw new Error("Server rejected payment");
-
-        if(activeTx.cur === "USDT") state.cryptoUSDT += activeTx.amt;
-        else state.fiat += activeTx.localAmt;
-        
-        if(!state.volData[activeTx.cur]) state.volData[activeTx.cur] = 0;
-        state.volData[activeTx.cur] += activeTx.localAmt;
-        
-        state.tx.unshift({type: activeTx.meth, time: new Date().toLocaleTimeString(), localAmt: activeTx.localAmt, flow: 'IN'});
-        closeModals(); 
-        updateUI();
-        popReceipt({type: activeTx.meth, inputAmt: activeTx.amt, cur: activeTx.cur, localAmt: activeTx.localAmt});
-    } catch(err) {
-        alert('Transaction sync failed at ' + BASE_URL);
-    }
+    // In a real app, this verifies the callback result from the server
+    state.fiat += activeTx.localAmt;
+    state.volData[activeTx.cur] += activeTx.localAmt;
+    state.tx.unshift({type: "M-Pesa IN", time: new Date().toLocaleTimeString(), localAmt: activeTx.localAmt, flow: 'IN'});
+    
+    closeModals();
+    updateUI();
+    popReceipt(activeTx);
 }
 
-// --- KEEPING ALL ORIGINAL UTILITIES FUNCTIONAL ---
-
-function exportCSV() {
-    if(state.tx.length === 0) return alert("No data to export");
-    let csv = "Time,Method,Amount,Flow\n";
-    state.tx.forEach(t => { csv += `${t.time},${t.type},${t.localAmt},${t.flow}\n`; });
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'lipa_ledger.csv';
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-}
-
-function runLiveFx() {
-    const val = parseFloat(document.getElementById('termAmt').value) || 0;
-    const cur = document.getElementById('termCur').value;
-    document.getElementById('liveFxOutput').innerText = `Settles as: ${(val * FX[cur]).toLocaleString()} KES`;
-}
-
-function popReceipt(data) {
-    const html = `<div class="receipt-header"><h2>LIPA SME</h2><p>Digital Node</p></div><div class="receipt-line"><span>DATE:</span> <span>${new Date().toLocaleString()}</span></div><div class="receipt-line"><span>METHOD:</span> <span>${data.type}</span></div><div class="receipt-line"><span>INPUT:</span> <span>${data.inputAmt} ${data.cur || 'KES'}</span></div><div class="receipt-total"><span>SETTLED:</span> <span>${data.localAmt.toLocaleString()} KES</span></div>`;
-    document.getElementById('receiptContent').innerHTML = html;
-    openModal('receiptModal');
-}
+// --- CORE UTILITIES ---
 
 function updateUI() {
     if(!state.user) return;
     document.getElementById('merchantTitle').innerText = state.user.name;
-    document.getElementById('walletInfo').innerText = `Route: ${state.user.wallet} • Verified`;
+    document.getElementById('walletInfo').innerText = `Wallet: ${state.user.wallet} (Active)`;
+    
     document.getElementById('fiatBal').innerText = balancesVisible ? state.fiat.toLocaleString() : "****";
     document.getElementById('cryptoBal').innerText = balancesVisible ? state.cryptoUSDT.toFixed(2) + " USDT" : "****";
     document.getElementById('vaultBal').innerText = vaultVisible ? ("KES " + state.vault.toLocaleString()) : "****";
-    
-    const chart = document.getElementById('analysisChart'); 
+
+    // Update Analytics Chart
+    const chart = document.getElementById('analysisChart');
     chart.innerHTML = '';
     const maxVal = Math.max(...Object.values(state.volData), 1000);
-    ['KES', 'USD', 'USDT', 'EUR', 'NGN', 'ZAR'].forEach(cur => {
-        const val = state.volData[cur] || 0;
-        const h = (val / maxVal) * 100;
+    Object.keys(state.volData).forEach(cur => {
+        const h = (state.volData[cur] / maxVal) * 100;
         chart.innerHTML += `<div class="bar-wrap"><div class="bar" style="height:${h}%"></div><span class="bar-label">${cur}</span></div>`;
     });
 
+    // Update Incentive Chart
+    const incChart = document.getElementById('incentiveChart');
+    incChart.innerHTML = '';
+    const maxInc = Math.max(...Object.values(state.incentiveData), 10);
+    Object.keys(state.incentiveData).forEach(day => {
+        const h = (state.incentiveData[day] / maxInc) * 100;
+        incChart.innerHTML += `<div class="bar-wrap"><div class="bar incentive-bar" style="height:${h}%"></div><span class="bar-label">${day}</span></div>`;
+    });
+
+    // Update Ledger
     document.getElementById('ledger').innerHTML = state.tx.slice(0,5).map(t => `
         <div class="tx-item">
             <div><strong>${t.type}</strong><br><small>${t.time}</small></div>
             <div style="color:${t.flow==='IN'?'var(--accent)':'var(--danger)'}">${t.flow==='IN'?'+':'-'}${t.localAmt.toLocaleString()}</div>
-        </div>`).join('') || '<p style="text-align:center;color:var(--muted)">No transactions</p>';
+        </div>`).join('');
+}
+
+function executeWithdrawal() {
+    const amt = parseFloat(document.getElementById('wdAmt').value);
+    const pin = document.getElementById('wdPin').value;
+    if(pin !== state.user.pin) return alert("Incorrect PIN");
+    if(amt > state.fiat) return alert("Insufficient funds");
+
+    state.fiat -= amt;
+    state.tx.unshift({type: "Withdraw", time: "Now", localAmt: amt, flow: 'OUT'});
+    alert(`KES ${amt} sent to ${document.getElementById('wdAccount').value}`);
+    closeModals();
+    updateUI();
 }
 
 function executeSwap() {
     const dir = document.getElementById('swapDir').value;
     const amt = parseFloat(document.getElementById('swapAmt').value);
-    if(!amt || amt <= 0) return alert("Invalid amount");
-    if(dir === "K2C" && state.fiat < amt) return alert("Low balance");
-    if(dir === "C2K" && state.cryptoUSDT < amt) return alert("Low balance");
-    if(dir === "K2C") { state.fiat -= amt; state.cryptoUSDT += (amt / FX.USDT); }
-    else { const f = amt * FX.USDT; state.cryptoUSDT -= amt; state.fiat += f; }
-    state.tx.unshift({type:"FX Swap", time:new Date().toLocaleTimeString(), localAmt: amt, flow: 'OUT'});
+    if(dir === "K2C" && state.fiat >= amt) {
+        state.fiat -= amt; state.cryptoUSDT += (amt/FX.USDT);
+    } else if(dir === "C2K" && state.cryptoUSDT >= amt) {
+        state.cryptoUSDT -= amt; state.fiat += (amt*FX.USDT);
+    } else { alert("Low balance"); return; }
     closeModals(); updateUI();
 }
 
-function executeWithdrawal() {
-    const amt = parseFloat(document.getElementById('wdAmt').value);
-    if(document.getElementById('wdPin').value !== state.user.pin) return alert("Wrong PIN");
-    if(amt > state.fiat) return alert("Low funds");
-    state.fiat -= amt;
-    state.tx.unshift({type:`Withdraw`, time:new Date().toLocaleTimeString(), localAmt:amt, flow:'OUT'});
-    closeModals(); updateUI();
+function processEndOfBusiness() {
+    const save = state.fiat * 0.15;
+    state.fiat -= save; state.vault += save;
+    state.tx.unshift({type:"Vault Deposit", time:"EOB", localAmt: save, flow:'OUT'});
+    updateUI();
 }
 
 function executeVaultUnlock() {
     const amt = parseFloat(document.getElementById('vMoveAmt').value);
     if(document.getElementById('vPin').value !== state.user.pin) return alert("Wrong PIN");
-    if(amt > state.vault) return alert("Low Vault balance");
     state.vault -= amt; state.fiat += amt;
-    state.tx.unshift({type:"Vault Release", time:new Date().toLocaleTimeString(), localAmt:amt, flow:'IN'});
     closeModals(); updateUI();
 }
 
-function processEndOfBusiness() {
-    if(state.fiat <= 0) return alert("No cash to settle");
-    const saveAmt = state.fiat * 0.15;
-    state.fiat -= saveAmt; state.vault += saveAmt;
-    state.tx.unshift({type:"Daily Save (15%)", time:new Date().toLocaleTimeString(), localAmt:saveAmt, flow:'OUT'});
-    updateUI();
+function popReceipt(d) {
+    document.getElementById('receiptContent').innerHTML = `
+        <div class="receipt-header"><h2>LIPA SME</h2><p>Merchant Receipt</p></div>
+        <div class="receipt-line"><span>DATE:</span><span>${new Date().toLocaleDateString()}</span></div>
+        <div class="receipt-line"><span>DESC:</span><span>${d.meth} Payment</span></div>
+        <div class="receipt-total"><span>TOTAL:</span><span>KES ${d.localAmt.toLocaleString()}</span></div>`;
+    openModal('receiptModal');
 }
 
-function initiatePayment() {
-    const amt = parseFloat(document.getElementById('termAmt').value);
-    const cur = document.getElementById('termCur').value;
-    activeTx = { ref: "L-"+Math.random().toString(36).substr(2,5).toUpperCase(), amt, cur, meth: document.getElementById('termMeth').value, localAmt: (amt * FX[cur]), target: state.user.wallet };
-    document.getElementById('pDesc').innerText = `PAY: ${amt} ${cur}`;
-    document.getElementById('targetWallet').innerText = activeTx.target;
-    document.getElementById('qrCode').innerHTML = '';
-    const q = new QRious({ element: document.createElement('canvas'), value: activeTx.ref, size: 200 });
-    document.getElementById('qrCode').appendChild(q.image);
-    openModal('payModal');
-}
-
-document.getElementById('termAmt').addEventListener('input', runLiveFx);
-document.getElementById('termCur').addEventListener('change', runLiveFx);
 function navigateTo(p) { document.querySelectorAll('.page').forEach(x => x.classList.remove('active-page')); document.getElementById(p).classList.add('active-page'); if(state.user) updateUI(); }
 function logout() { state.user = null; navigateTo('loginPage'); }
 function openModal(id) { document.getElementById(id).style.display = 'flex'; }
 function closeModals() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
 function toggleBalances() { balancesVisible = !balancesVisible; updateUI(); }
 function toggleVault() { vaultVisible = !vaultVisible; updateUI(); }
+
+document.getElementById('termAmt').addEventListener('input', () => {
+    const v = document.getElementById('termAmt').value;
+    const c = document.getElementById('termCur').value;
+    document.getElementById('liveFxOutput').innerText = `Settles as: ${(v * FX[c]).toLocaleString()} KES`;
+});
 </script>
 </body>
 </html>
