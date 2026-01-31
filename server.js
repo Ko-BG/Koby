@@ -4,153 +4,110 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 
-// --- CONFIG ---
 const app = express();
-const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/lipa_sme";
-
-// --- MIDDLEWARE ---
 app.use(cors());
 app.use(bodyParser.json());
 
-// --- MONGODB CONNECTION ---
+// ----- 1. MONGODB CONNECTION -----
+const MONGO_URI = "mongodb+srv://gilliannyangaga95_db_user:<h6Pdma0ISSt6Ak8R>@cluster0.xlsldfh.mongodb.net/lipa_sme?retryWrites=true&w=majority";
+
 mongoose.connect(MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true
 })
-.then(() => console.log('✅ MongoDB connected'))
-.catch(err => console.error('❌ MongoDB connection error:', err));
+.then(() => console.log("✅ MongoDB connected"))
+.catch(err => console.log("❌ MongoDB connection error:", err));
 
-// --- SCHEMAS ---
+// ----- 2. SCHEMAS -----
 const merchantSchema = new mongoose.Schema({
-    name: String,
-    wallet: String,
-    email: { type: String, unique: true },
-    pin: String,
-    fiat: { type: Number, default: 0 },
-    cryptoUSDT: { type: Number, default: 0 },
-    vault: { type: Number, default: 0 },
-    tx: { type: Array, default: [] }
+    name: { type: String, required: true },
+    wallet: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    pin: { type: String, required: true }
 }, { timestamps: true });
 
+const transactionSchema = new mongoose.Schema({
+    merchantEmail: { type: String, required: true },
+    type: String,
+    inputAmt: Number,
+    localAmt: Number,
+    cur: String,
+    flow: String,
+    createdAt: { type: Date, default: Date.now }
+});
+
 const Merchant = mongoose.model('Merchant', merchantSchema);
+const Transaction = mongoose.model('Transaction', transactionSchema);
 
-// --- ROUTES ---
+// ----- 3. ROUTES -----
 
-// Signup
+// Sign-up new merchant
 app.post('/api/signup', async (req, res) => {
+    const { name, wallet, email, pin } = req.body;
+    if(!name || !wallet || !email || !pin) return res.json({ success: false, error: "All fields required" });
+
     try {
-        const { name, wallet, email, pin } = req.body;
-        if(!name || !email || !pin) return res.json({ success: false, error: 'All fields required' });
-
         const exists = await Merchant.findOne({ email });
-        if(exists) return res.json({ success: false, error: 'Email already registered' });
+        if(exists) return res.json({ success: false, error: "Email already registered" });
 
-        const merchant = await Merchant.create({ name, wallet, email, pin });
-        return res.json({ success: true, merchant });
+        const merchant = new Merchant({ name, wallet, email, pin });
+        await merchant.save();
+        res.json({ success: true });
     } catch(err) {
-        console.error(err);
-        return res.json({ success: false, error: 'Server error' });
+        console.log(err);
+        res.json({ success: false, error: "Server error" });
     }
 });
 
 // Login
 app.post('/api/login', async (req, res) => {
+    const { email, pin } = req.body;
     try {
-        const { email, pin } = req.body;
         const merchant = await Merchant.findOne({ email, pin });
-        if(!merchant) return res.json({ success: false, error: 'Invalid credentials' });
-        return res.json({ success: true, merchant });
+        if(!merchant) return res.json({ success: false, error: "Invalid credentials" });
+        res.json({ success: true, merchant });
     } catch(err) {
-        console.error(err);
-        return res.json({ success: false, error: 'Server error' });
+        console.log(err);
+        res.json({ success: false, error: "Server error" });
     }
 });
 
 // Payment
 app.post('/api/payment', async (req, res) => {
+    const { email, wallet, amount, method } = req.body;
     try {
-        const { email, wallet, amount, method } = req.body;
         const merchant = await Merchant.findOne({ email });
-        if(!merchant) return res.json({ success: false, error: 'Merchant not found' });
+        if(!merchant) return res.json({ success: false, error: "Merchant not found" });
 
-        // For simplicity, assume amount is KES. You can add FX logic
-        merchant.fiat += amount;
-        merchant.tx.unshift({ type: method, time: new Date().toLocaleTimeString(), localAmt: amount, flow: 'IN' });
-        await merchant.save();
+        // For demo, store transaction
+        const tx = new Transaction({
+            merchantEmail: email,
+            type: method,
+            inputAmt: amount,
+            localAmt: amount, // You can convert using FX later
+            cur: 'KES',
+            flow: 'IN'
+        });
+        await tx.save();
 
-        return res.json({ success: true });
+        res.json({ success: true, transaction: tx });
     } catch(err) {
-        console.error(err);
-        return res.json({ success: false, error: 'Payment failed' });
+        console.log(err);
+        res.json({ success: false, error: "Payment failed" });
     }
 });
 
-// Swap FX (KES <-> USDT)
-app.post('/api/swap', async (req, res) => {
+// Get last 10 transactions for merchant (optional)
+app.get('/api/transactions/:email', async (req, res) => {
     try {
-        const { email, direction, amount } = req.body;
-        const FX = 132.5; // KES per USDT
-        const merchant = await Merchant.findOne({ email });
-        if(!merchant) return res.json({ success: false, error: 'Merchant not found' });
-
-        if(direction === 'K2C') {
-            if(merchant.fiat < amount) return res.json({ success:false, error:'Low KES balance' });
-            merchant.fiat -= amount;
-            merchant.cryptoUSDT += amount / FX;
-        } else {
-            if(merchant.cryptoUSDT < amount) return res.json({ success:false, error:'Low USDT balance' });
-            merchant.cryptoUSDT -= amount;
-            merchant.fiat += amount * FX;
-        }
-        merchant.tx.unshift({ type: 'FX Swap', time: new Date().toLocaleTimeString(), localAmt: amount, flow: 'OUT' });
-        await merchant.save();
-
-        return res.json({ success: true });
+        const txs = await Transaction.find({ merchantEmail: req.params.email }).sort({ createdAt: -1 }).limit(10);
+        res.json({ success: true, txs });
     } catch(err) {
-        console.error(err);
-        return res.json({ success:false, error:'Swap failed' });
+        console.log(err);
+        res.json({ success: false, error: "Failed to fetch transactions" });
     }
 });
 
-// Withdrawal
-app.post('/api/withdraw', async (req, res) => {
-    try {
-        const { email, pin, amount } = req.body;
-        const merchant = await Merchant.findOne({ email });
-        if(!merchant) return res.json({ success:false, error:'Merchant not found' });
-        if(pin !== merchant.pin) return res.json({ success:false, error:'Wrong PIN' });
-        if(amount > merchant.fiat) return res.json({ success:false, error:'Insufficient funds' });
-
-        merchant.fiat -= amount;
-        merchant.tx.unshift({ type:'Withdraw', time: new Date().toLocaleTimeString(), localAmt: amount, flow:'OUT' });
-        await merchant.save();
-        return res.json({ success:true });
-    } catch(err) {
-        console.error(err);
-        return res.json({ success:false, error:'Withdrawal failed' });
-    }
-});
-
-// Vault unlock
-app.post('/api/vault', async (req, res) => {
-    try {
-        const { email, pin, amount } = req.body;
-        const merchant = await Merchant.findOne({ email });
-        if(!merchant) return res.json({ success:false, error:'Merchant not found' });
-        if(pin !== merchant.pin) return res.json({ success:false, error:'Wrong PIN' });
-        if(amount > merchant.vault) return res.json({ success:false, error:'Insufficient vault balance' });
-
-        merchant.vault -= amount;
-        merchant.fiat += amount;
-        merchant.tx.unshift({ type:'Vault Release', time: new Date().toLocaleTimeString(), localAmt: amount, flow:'IN' });
-        await merchant.save();
-        return res.json({ success:true });
-    } catch(err) {
-        console.error(err);
-        return res.json({ success:false, error:'Vault unlock failed' });
-    }
-});
-
-// --- START SERVER ---
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+// ----- 4. START SERVER -----
+const PORT = 5000;
+app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
