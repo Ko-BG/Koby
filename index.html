@@ -198,7 +198,7 @@ input,select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--b
             </div>
 
             <div class="card">
-                <div class="card-title">📋 Direct Ledger</div>
+                <div class="card-title">📋 Direct Ledger <button onclick="exportCSV()" style="width:auto; padding: 4px 10px; font-size: 0.6rem; background: var(--border); margin:0;">Export CSV</button></div>
                 <div id="ledger"></div>
             </div>
         </div>
@@ -211,7 +211,6 @@ input,select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--b
         <div id="qrCode" style="margin:20px 0; display: flex; justify-content: center;"></div>
         <div class="scan-tag">SETTLING TO: <span id="targetWallet"></span></div>
         <p id="pDesc" style="font-size:1.4rem; font-weight:800; color:var(--text); margin-top:15px;"></p>
-        <p style="font-size:0.7rem; color:var(--muted); margin-bottom:20px;">Customer STK Push sent or scan for Crypto</p>
         <button class="btn-primary" onclick="confirmPayment()">Verify & Sync Ledger</button>
         <button class="btn-secondary" style="margin-top:10px;background:none;color:white;" onclick="closeModals()">Cancel</button>
     </div>
@@ -221,10 +220,7 @@ input,select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--b
     <div class="modal-inner">
         <h2>💱 Currency Swap</h2>
         <label>Direction</label>
-        <select id="swapDir">
-            <option value="K2C">KES → USDT</option>
-            <option value="C2K">USDT → KES</option>
-        </select>
+        <select id="swapDir"><option value="K2C">KES → USDT</option><option value="C2K">USDT → KES</option></select>
         <label>Amount</label>
         <input id="swapAmt" type="number" placeholder="0.00">
         <button class="btn-primary" onclick="executeSwap()">Execute Swap</button>
@@ -234,36 +230,13 @@ input,select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--b
 
 <div class="modal" id="withdrawModal">
     <div class="modal-inner">
-        <h2>🏧 Settlement Withdrawal</h2>
-        
-        <label>Settlement Destination</label>
-        <select id="wdType">
-            <option value="MPESA">M-Pesa (Till/Phone)</option>
-            <option value="AIRTEL">Airtel Money</option>
-            <option value="BANK">Bank Transfer (RTGS/Swift)</option>
-        </select>
-
-        <label>Bank / Provider Name</label>
-        <select id="wdProvider">
-            <option value="KCB">KCB Bank</option>
-            <option value="UBA">UBA Bank (Pan-African)</option>
-            <option value="EQUITY">Equity Bank</option>
-            <option value="ABSA">Absa</option>
-            <option value="MOBILE">Mobile Money Provider</option>
-        </select>
-
+        <h2>🏧 Withdrawal</h2>
         <label>Account / Wallet Number</label>
-        <input id="wdAccount" type="text" placeholder="e.g. 0712345678 or 110293...">
-        
-        <label>Branch / Swift Code (Optional for Bank)</label>
-        <input id="wdSwift" type="text" placeholder="e.g. KCBLKENX">
-
-        <label>Amount to Withdraw (KES)</label>
+        <input id="wdAccount" type="text" placeholder="e.g. 0712345678">
+        <label>Amount (KES)</label>
         <input id="wdAmt" type="number" placeholder="0.00">
-        
         <label>Confirm PIN</label>
         <input id="wdPin" type="password" maxlength="4" placeholder="****">
-        
         <button class="btn-primary" onclick="executeWithdrawal()">Process Withdrawal</button>
         <button class="btn-secondary" style="background:none;color:white;" onclick="closeModals()">Cancel</button>
     </div>
@@ -302,54 +275,125 @@ let state = {
 
 let activeTx = null, balancesVisible = true, vaultVisible = true;
 
-// REAL-TIME FX CALCULATOR
-document.getElementById('termAmt').addEventListener('input', runLiveFx);
-document.getElementById('termCur').addEventListener('change', runLiveFx);
+// --- API LAYER: WIRED TO SERVER ---
+
+async function handleSignup() {
+    const name = document.getElementById('regName').value;
+    const wallet = document.getElementById('regWallet').value;
+    const email = document.getElementById('regEmail').value;
+    const pin = document.getElementById('regPin').value;
+
+    if(!name || !email || !pin) return alert("All fields required");
+
+    try {
+        const res = await fetch('/api/signup', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ name, wallet, email, pin })
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert('✅ Merchant Profile Created!');
+            navigateTo('loginPage');
+        } else {
+            alert(data.error);
+        }
+    } catch (err) {
+        alert('Server connection failed. Is server.js running?');
+    }
+}
+
+async function handleLogin() {
+    const email = document.getElementById('loginEmail').value;
+    const pin = document.getElementById('loginPin').value;
+
+    try {
+        const res = await fetch('/api/login', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ email, pin })
+        });
+        const data = await res.json();
+        if (data.success) {
+            state.user = data.merchant; 
+            navigateTo('dashboardPage');
+        } else {
+            alert(data.error);
+        }
+    } catch (err) {
+        alert('Authentication server offline');
+    }
+}
+
+async function confirmPayment() {
+    if (!activeTx) return;
+
+    try {
+        const res = await fetch('/api/payment', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({
+                email: state.user.email,
+                wallet: state.user.wallet,
+                amount: activeTx.amt,
+                method: activeTx.meth
+            })
+        });
+        
+        const result = await res.json();
+        if(!result.success) throw new Error("Server rejected payment");
+
+        // Logic only executes on server success
+        if(activeTx.cur === "USDT") state.cryptoUSDT += activeTx.amt;
+        else state.fiat += activeTx.localAmt;
+        
+        if(!state.volData[activeTx.cur]) state.volData[activeTx.cur] = 0;
+        state.volData[activeTx.cur] += activeTx.localAmt;
+        
+        state.tx.unshift({type: activeTx.meth, time: new Date().toLocaleTimeString(), localAmt: activeTx.localAmt, flow: 'IN'});
+        closeModals(); 
+        updateUI();
+        popReceipt({type: activeTx.meth, inputAmt: activeTx.amt, cur: activeTx.cur, localAmt: activeTx.localAmt});
+    } catch(err) {
+        alert('Transaction sync failed.');
+    }
+}
+
+// --- UTILITIES & UI ---
+
+function exportCSV() {
+    if(state.tx.length === 0) return alert("No data to export");
+    let csv = "Time,Method,Amount,Flow\n";
+    state.tx.forEach(t => {
+        csv += `${t.time},${t.type},${t.localAmt},${t.flow}\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.setAttribute('hidden', '');
+    a.setAttribute('href', url);
+    a.setAttribute('download', 'lipa_ledger.csv');
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
 
 function runLiveFx() {
     const val = parseFloat(document.getElementById('termAmt').value) || 0;
     const cur = document.getElementById('termCur').value;
-    const result = val * FX[cur];
-    document.getElementById('liveFxOutput').innerText = `Settles as: ${result.toLocaleString()} KES`;
+    document.getElementById('liveFxOutput').innerText = `Settles as: ${(val * FX[cur]).toLocaleString()} KES`;
 }
 
-// AUTOMATED RECEIPT GENERATOR
 function popReceipt(data) {
-    const time = new Date().toLocaleString();
     const html = `
-        <div class="receipt-header">
-            <h2 style="margin:0">LIPA SME</h2>
-            <p style="margin:2px 0">Digital Settlement Node</p>
-            <p style="font-size:0.6rem">REF: ${Math.random().toString(36).substr(2,9).toUpperCase()}</p>
-        </div>
-        <div class="receipt-line"><span>DATE:</span> <span>${time}</span></div>
-        <div class="receipt-line"><span>MERCHANT:</span> <span>${state.user.name}</span></div>
+        <div class="receipt-header"><h2>LIPA SME</h2><p>Digital Node</p></div>
+        <div class="receipt-line"><span>DATE:</span> <span>${new Date().toLocaleString()}</span></div>
         <div class="receipt-line"><span>METHOD:</span> <span>${data.type}</span></div>
-        <hr style="border:0.5px dashed #000; margin:8px 0;">
         <div class="receipt-line"><span>INPUT:</span> <span>${data.inputAmt} ${data.cur || 'KES'}</span></div>
-        <div class="receipt-line"><span>FX RATE:</span> <span>1:${FX[data.cur] || 1}</span></div>
-        <div class="receipt-total">
-            <div class="receipt-line"><span>SETTLED:</span> <span>${data.localAmt.toLocaleString()} KES</span></div>
-        </div>
-        <p style="text-align:center; font-size:0.55rem; margin-top:10px; color:#555">Daraja Cloud Integrated Receipt</p>
+        <div class="receipt-total"><span>SETTLED:</span> <span>${data.localAmt.toLocaleString()} KES</span></div>
     `;
     document.getElementById('receiptContent').innerHTML = html;
     openModal('receiptModal');
-}
-
-function handleSignup() {
-    state.user = {
-        name: document.getElementById('regName').value || "Zuri Fashions",
-        wallet: document.getElementById('regWallet').value || "5442211",
-        email: document.getElementById('regEmail').value,
-        pin: document.getElementById('regPin').value || "1234"
-    };
-    navigateTo('loginPage');
-}
-
-function handleLogin() {
-    if(state.user) navigateTo('dashboardPage');
-    else alert("Please sign up first");
 }
 
 function updateUI() {
@@ -360,75 +404,52 @@ function updateUI() {
     document.getElementById('cryptoBal').innerText = balancesVisible ? state.cryptoUSDT.toFixed(2) + " USDT" : "****";
     document.getElementById('vaultBal').innerText = vaultVisible ? ("KES " + state.vault.toLocaleString()) : "****";
     
-    // FUNCTIONAL ANALYTICS CHART
     const chart = document.getElementById('analysisChart'); 
     chart.innerHTML = '';
     const maxVal = Math.max(...Object.values(state.volData), 1000);
-    
-    // Sort keys to keep chart consistent
-    const currencies = ['KES', 'USD', 'USDT', 'EUR', 'NGN', 'ZAR'];
-    currencies.forEach(cur => {
+    ['KES', 'USD', 'USDT', 'EUR', 'NGN', 'ZAR'].forEach(cur => {
         const val = state.volData[cur] || 0;
         const h = (val / maxVal) * 100;
-        chart.innerHTML += `
-            <div class="bar-wrap">
-                <div class="bar" style="height:${h}%" title="${val.toLocaleString()} KES"></div>
-                <span class="bar-label">${cur}</span>
-            </div>`;
+        chart.innerHTML += `<div class="bar-wrap"><div class="bar" style="height:${h}%"></div><span class="bar-label">${cur}</span></div>`;
     });
 
-    const ledger = document.getElementById('ledger');
-    ledger.innerHTML = state.tx.slice(0,5).map(t => `
+    document.getElementById('ledger').innerHTML = state.tx.slice(0,5).map(t => `
         <div class="tx-item">
             <div><strong>${t.type}</strong><br><small>${t.time}</small></div>
             <div style="color:${t.flow==='IN'?'var(--accent)':'var(--danger)'}">${t.flow==='IN'?'+':'-'}${t.localAmt.toLocaleString()}</div>
-        </div>`).join('') || '<p style="text-align:center;padding:10px;color:var(--muted)">No transactions</p>';
+        </div>`).join('') || '<p style="text-align:center;color:var(--muted)">No transactions</p>';
 }
 
 function executeSwap() {
     const dir = document.getElementById('swapDir').value;
     const amt = parseFloat(document.getElementById('swapAmt').value);
     if(!amt || amt <= 0) return alert("Invalid amount");
-    let finalAmt = 0;
-    if(dir === "K2C") {
-        if(state.fiat < amt) return alert("Low KES balance");
-        state.fiat -= amt; state.cryptoUSDT += (amt / FX.USDT);
-        finalAmt = amt;
-    } else {
-        if(state.cryptoUSDT < amt) return alert("Low USDT balance");
-        finalAmt = amt * FX.USDT;
-        state.cryptoUSDT -= amt; state.fiat += finalAmt;
-    }
-    state.tx.unshift({type:"FX Swap", time:new Date().toLocaleTimeString(), localAmt:finalAmt, flow: dir === 'K2C' ? 'OUT' : 'IN'});
+    if(dir === "K2C" && state.fiat < amt) return alert("Low balance");
+    if(dir === "C2K" && state.cryptoUSDT < amt) return alert("Low balance");
+    
+    if(dir === "K2C") { state.fiat -= amt; state.cryptoUSDT += (amt / FX.USDT); }
+    else { const f = amt * FX.USDT; state.cryptoUSDT -= amt; state.fiat += f; }
+    
+    state.tx.unshift({type:"FX Swap", time:new Date().toLocaleTimeString(), localAmt: amt, flow: 'OUT'});
     closeModals(); updateUI();
-    popReceipt({type: "Currency Swap", inputAmt: amt, cur: dir==='K2C'?'KES':'USDT', localAmt: finalAmt});
 }
 
 function executeWithdrawal() {
     const amt = parseFloat(document.getElementById('wdAmt').value);
-    const pin = document.getElementById('wdPin').value;
-    const acc = document.getElementById('wdAccount').value;
-    const provider = document.getElementById('wdProvider').value;
-
-    if(pin !== state.user.pin) return alert("Wrong PIN");
+    if(document.getElementById('wdPin').value !== state.user.pin) return alert("Wrong PIN");
     if(amt > state.fiat) return alert("Low funds");
-    if(!acc) return alert("Account/Wallet number required");
-
     state.fiat -= amt;
-    state.tx.unshift({type:`Withdraw (${provider})`, time:new Date().toLocaleTimeString(), localAmt:amt, flow:'OUT'});
+    state.tx.unshift({type:`Withdraw`, time:new Date().toLocaleTimeString(), localAmt:amt, flow:'OUT'});
     closeModals(); updateUI();
-    popReceipt({type: `Withdrawal (${provider})`, inputAmt: amt, cur: 'KES', localAmt: amt});
 }
 
 function executeVaultUnlock() {
     const amt = parseFloat(document.getElementById('vMoveAmt').value);
-    const pin = document.getElementById('vPin').value;
-    if(pin !== state.user.pin) return alert("Wrong PIN");
+    if(document.getElementById('vPin').value !== state.user.pin) return alert("Wrong PIN");
     if(amt > state.vault) return alert("Low Vault balance");
     state.vault -= amt; state.fiat += amt;
     state.tx.unshift({type:"Vault Release", time:new Date().toLocaleTimeString(), localAmt:amt, flow:'IN'});
     closeModals(); updateUI();
-    popReceipt({type: "Vault Unlock", inputAmt: amt, cur: 'KES', localAmt: amt});
 }
 
 function processEndOfBusiness() {
@@ -437,13 +458,12 @@ function processEndOfBusiness() {
     state.fiat -= saveAmt; state.vault += saveAmt;
     state.tx.unshift({type:"Daily Save (15%)", time:new Date().toLocaleTimeString(), localAmt:saveAmt, flow:'OUT'});
     updateUI();
-    popReceipt({type: "End of Day (15% Save)", inputAmt: saveAmt, cur: 'KES', localAmt: saveAmt});
 }
 
 function initiatePayment() {
     const amt = parseFloat(document.getElementById('termAmt').value);
     const cur = document.getElementById('termCur').value;
-    activeTx = { ref: "L-"+Math.random().toString(36).substr(2,5).toUpperCase(), amt, cur, meth: document.getElementById('termMeth').value, localAmt: (amt * (FX[cur] || 1)), target: state.user.wallet };
+    activeTx = { ref: "L-"+Math.random().toString(36).substr(2,5).toUpperCase(), amt, cur, meth: document.getElementById('termMeth').value, localAmt: (amt * FX[cur]), target: state.user.wallet };
     document.getElementById('pDesc').innerText = `PAY: ${amt} ${cur}`;
     document.getElementById('targetWallet').innerText = activeTx.target;
     document.getElementById('qrCode').innerHTML = '';
@@ -453,20 +473,8 @@ function initiatePayment() {
     openModal('payModal');
 }
 
-function confirmPayment() {
-    if(activeTx.cur === "USDT") state.cryptoUSDT += activeTx.amt;
-    else state.fiat += activeTx.localAmt;
-    
-    // UPDATE ANALYTICS VOLUME
-    if(!state.volData[activeTx.cur]) state.volData[activeTx.cur] = 0;
-    state.volData[activeTx.cur] += activeTx.localAmt;
-    
-    state.tx.unshift({type: activeTx.meth, time: new Date().toLocaleTimeString(), localAmt: activeTx.localAmt, flow: 'IN'});
-    closeModals(); 
-    updateUI();
-    popReceipt({type: activeTx.meth, inputAmt: activeTx.amt, cur: activeTx.cur, localAmt: activeTx.localAmt});
-}
-
+document.getElementById('termAmt').addEventListener('input', runLiveFx);
+document.getElementById('termCur').addEventListener('change', runLiveFx);
 function navigateTo(p) { document.querySelectorAll('.page').forEach(x => x.classList.remove('active-page')); document.getElementById(p).classList.add('active-page'); updateUI(); }
 function logout() { state.user = null; navigateTo('loginPage'); }
 function openModal(id) { document.getElementById(id).style.display = 'flex'; }
