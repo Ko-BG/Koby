@@ -9,7 +9,7 @@ app.use(cors());
 app.use(bodyParser.json());
 
 // ----- 1. MONGODB CONNECTION -----
-const MONGO_URI = "mongodb+srv://gilliannyangaga95_db_user:<h6Pdma0ISSt6Ak8R>@cluster0.xlsldfh.mongodb.net/lipa_sme?retryWrites=true&w=majority";
+const MONGO_URI = "mongodb+srv://gilliannyangaga95_db_user:JDCeycVpqJwZ0m2d@cluster0.cd62bpl.mongodb.net/?appName=Cluster0.xlsldfh.mongodb.net/lipa_sme?retryWrites=true&w=majority";
 
 mongoose.connect(MONGO_URI, {
     useNewUrlParser: true,
