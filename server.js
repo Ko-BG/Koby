@@ -9,7 +9,7 @@ app.use(bodyParser.json());
 
 // 1. DATABASE CONNECTION 
 // FIX: Removed the < > brackets from your password
-const mongoURI = 'mongodb+srv://gilliannyangaga95_db_user:pgcgXSNfeflpvoKk@cluster0.6vqjwsd.mongodb.net/LipaSME?retryWrites=true&w=majority&appName=Cluster0';
+const mongoURI = 'mongodb+srv://gilliannyangaga95_db_user:<iG73g3IoSQlYtMCJ>@cluster0.6vqjwsd.mongodb.net/LipaSME?retryWrites=true&w=majority&appName=Cluster0';
 
 mongoose.connect(mongoURI)
   .then(() => console.log('✅ MongoDB Connected Successfully'))
