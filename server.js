@@ -1,109 +1,87 @@
-const express = require('express');
-const path = require('path');
-const bodyParser = require('body-parser');
-const mongoose = require('mongoose');
 require('dotenv').config();
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const bodyParser = require('body-parser');
 
+// --- APP SETUP ---
 const app = express();
-const PORT = process.env.PORT || 3000;
-
-// --- Middleware ---
+app.use(cors());
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static('public')); // if you host your HTML here
 
-// --- MongoDB Setup ---
-const mongoUri = process.env.MONGO_URI; // Set in Render environment
-mongoose.connect(mongoUri, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => console.log('✅ MongoDB connected'))
-.catch(err => console.error('MongoDB connection error:', err));
+const PORT = process.env.PORT || 5000;
 
-// --- Schemas ---
-const accessLogSchema = new mongoose.Schema({
-  email: String,
-  wallet: String,
-  ip: String,
-  action: String, // signup/login/payment
-  timestamp: { type: Date, default: Date.now }
-});
+// --- DATABASE CONNECTION ---
+mongoose.connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+}).then(() => console.log("✅ MongoDB Connected"))
+  .catch(err => console.error("❌ MongoDB Connection Error:", err));
 
-const AccessLog = mongoose.model('AccessLog', accessLogSchema);
-
+// --- SCHEMAS ---
 const merchantSchema = new mongoose.Schema({
-  name: String,
-  wallet: String,
-  email: String,
-  pin: String,
-  createdAt: { type: Date, default: Date.now }
+    name: { type: String, required: true },
+    wallet: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    pin: { type: String, required: true },
+    createdAt: { type: Date, default: Date.now }
 });
 
 const Merchant = mongoose.model('Merchant', merchantSchema);
 
-// --- Routes ---
-// Serve HTML
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+// --- ROUTES ---
+// Health check
+app.get('/', (req, res) => res.send("LIPA SME Hub API Running"));
 
-// Merchant Sign-Up
+// Signup
 app.post('/api/signup', async (req, res) => {
-  try {
     const { name, wallet, email, pin } = req.body;
-    if (!name || !wallet || !email || !pin) return res.status(400).json({ error: "All fields required" });
+    if (!name || !wallet || !email || !pin) return res.json({ success: false, error: "All fields required" });
 
-    const existing = await Merchant.findOne({ email });
-    if (existing) return res.status(400).json({ error: "Email already registered" });
+    try {
+        const exists = await Merchant.findOne({ email });
+        if (exists) return res.json({ success: false, error: "Email already registered" });
 
-    const merchant = new Merchant({ name, wallet, email, pin });
-    await merchant.save();
-
-    const log = new AccessLog({ email, wallet, ip: req.ip, action: 'signup' });
-    await log.save();
-
-    res.json({ success: true, merchant });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
+        const merchant = new Merchant({ name, wallet, email, pin });
+        await merchant.save();
+        res.json({ success: true, merchant });
+    } catch (err) {
+        console.error(err);
+        res.json({ success: false, error: "Signup failed" });
+    }
 });
 
-// Merchant Login
+// Login
 app.post('/api/login', async (req, res) => {
-  try {
     const { email, pin } = req.body;
-    if (!email || !pin) return res.status(400).json({ error: "Email and PIN required" });
+    if (!email || !pin) return res.json({ success: false, error: "All fields required" });
 
-    const merchant = await Merchant.findOne({ email });
-    if (!merchant || merchant.pin !== pin) return res.status(401).json({ error: "Invalid credentials" });
+    try {
+        const merchant = await Merchant.findOne({ email, pin });
+        if (!merchant) return res.json({ success: false, error: "Invalid credentials" });
 
-    const log = new AccessLog({ email, wallet: merchant.wallet, ip: req.ip, action: 'login' });
-    await log.save();
-
-    res.json({ success: true, merchant });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
+        res.json({ success: true, merchant });
+    } catch (err) {
+        console.error(err);
+        res.json({ success: false, error: "Login failed" });
+    }
 });
 
-// Payment Logging (placeholder for Daraja)
+// Payment simulation (update balances on server)
 app.post('/api/payment', async (req, res) => {
-  try {
     const { email, wallet, amount, method } = req.body;
-    if (!email || !wallet || !amount || !method) return res.status(400).json({ error: "Missing payment data" });
+    if (!email || !amount || !wallet) return res.json({ success: false, error: "Missing payment data" });
 
-    const log = new AccessLog({ email, wallet, ip: req.ip, action: `payment-${method}` });
-    await log.save();
-
-    res.json({ success: true, message: `Payment logged for ${email}` });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
+    try {
+        // For demo, we just approve the payment
+        // Here you can integrate actual mobile money or crypto APIs
+        return res.json({ success: true, msg: "Payment processed" });
+    } catch (err) {
+        console.error(err);
+        res.json({ success: false, error: "Payment failed" });
+    }
 });
 
-// --- Start Server ---
-app.listen(PORT, () => console.log(`🚀 LIPA SME Server running on port ${PORT}`));
+// --- START SERVER ---
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
