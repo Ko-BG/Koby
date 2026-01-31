@@ -5,17 +5,17 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 
 const app = express();
-app.use(cors());
+
+// ----- MIDDLEWARE -----
+app.use(cors()); // Allows your frontend to connect
 app.use(bodyParser.json());
 
 // ----- 1. MONGODB CONNECTION -----
-const MONGO_URI = "mongodb+srv://gilliannyangaga95_db_user:JDCeycVpqJwZ0m2d@cluster0.cd62bpl.mongodb.net/?appName=Cluster0.xlsldfh.mongodb.net/lipa_sme?retryWrites=true&w=majority";
+// Note: I cleaned the connection string slightly to ensure the DB name "lipa_sme" is parsed correctly
+const MONGO_URI = "mongodb+srv://gilliannyangaga95_db_user:JDCeycVpqJwZ0m2d@cluster0.cd62bpl.mongodb.net/lipa_sme?retryWrites=true&w=majority";
 
-mongoose.connect(MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-})
-.then(() => console.log("✅ MongoDB connected"))
+mongoose.connect(MONGO_URI)
+.then(() => console.log("✅ MongoDB connected to database: lipa_sme"))
 .catch(err => console.log("❌ MongoDB connection error:", err));
 
 // ----- 2. SCHEMAS -----
@@ -41,6 +41,14 @@ const Transaction = mongoose.model('Transaction', transactionSchema);
 
 // ----- 3. ROUTES -----
 
+/**
+ * ROOT ROUTE - THIS FIXES "CANNOT GET /"
+ * When you visit the live URL in a browser, this will now show.
+ */
+app.get('/', (req, res) => {
+    res.status(200).send("🚀 LIPA SME API is live and connected to MongoDB Atlas.");
+});
+
 // Sign-up new merchant
 app.post('/api/signup', async (req, res) => {
     const { name, wallet, email, pin } = req.body;
@@ -54,8 +62,8 @@ app.post('/api/signup', async (req, res) => {
         await merchant.save();
         res.json({ success: true });
     } catch(err) {
-        console.log(err);
-        res.json({ success: false, error: "Server error" });
+        console.error("Signup Error:", err);
+        res.json({ success: false, error: "Server error during registration" });
     }
 });
 
@@ -67,8 +75,8 @@ app.post('/api/login', async (req, res) => {
         if(!merchant) return res.json({ success: false, error: "Invalid credentials" });
         res.json({ success: true, merchant });
     } catch(err) {
-        console.log(err);
-        res.json({ success: false, error: "Server error" });
+        console.error("Login Error:", err);
+        res.json({ success: false, error: "Authentication failed" });
     }
 });
 
@@ -79,12 +87,11 @@ app.post('/api/payment', async (req, res) => {
         const merchant = await Merchant.findOne({ email });
         if(!merchant) return res.json({ success: false, error: "Merchant not found" });
 
-        // For demo, store transaction
         const tx = new Transaction({
             merchantEmail: email,
             type: method,
             inputAmt: amount,
-            localAmt: amount, // You can convert using FX later
+            localAmt: amount, 
             cur: 'KES',
             flow: 'IN'
         });
@@ -92,22 +99,25 @@ app.post('/api/payment', async (req, res) => {
 
         res.json({ success: true, transaction: tx });
     } catch(err) {
-        console.log(err);
-        res.json({ success: false, error: "Payment failed" });
+        console.error("Payment Error:", err);
+        res.json({ success: false, error: "Transaction failed to save" });
     }
 });
 
-// Get last 10 transactions for merchant (optional)
+// Get last 10 transactions
 app.get('/api/transactions/:email', async (req, res) => {
     try {
         const txs = await Transaction.find({ merchantEmail: req.params.email }).sort({ createdAt: -1 }).limit(10);
         res.json({ success: true, txs });
     } catch(err) {
-        console.log(err);
-        res.json({ success: false, error: "Failed to fetch transactions" });
+        res.json({ success: false, error: "Failed to fetch ledger" });
     }
 });
 
 // ----- 4. START SERVER -----
-const PORT = 5000;
-app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
+// Using process.env.PORT for live hosting services like Render or Heroku
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📡 Local check: http://localhost:${PORT}`);
+});
