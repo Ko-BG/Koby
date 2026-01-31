@@ -10,8 +10,8 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-// Serve static files from the 'public' folder
-app.use(express.static(path.join(__dirname, 'public')));
+// Tell Express to serve files (like index.html) directly from the root directory
+app.use(express.static(__dirname));
 
 // ----- 1. MONGODB CONNECTION -----
 const MONGO_URI = "mongodb+srv://gilliannyangaga95_db_user:JDCeycVpqJwZ0m2d@cluster0.cd62bpl.mongodb.net/lipa_sme?retryWrites=true&w=majority";
@@ -28,30 +28,52 @@ const merchantSchema = new mongoose.Schema({
     pin: { type: String, required: true }
 }, { timestamps: true });
 
-const Merchant = mongoose.model('Merchant', merchantSchema);
-
-// ----- 3. ROUTES -----
-
-// ROOT ROUTE: Serves your actual Frontend (index.html)
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+const transactionSchema = new mongoose.Schema({
+    merchantEmail: { type: String, required: true },
+    type: String,
+    inputAmt: Number,
+    localAmt: Number,
+    cur: String,
+    flow: String,
+    createdAt: { type: Date, default: Date.now }
 });
 
-// API: Signup
+const Merchant = mongoose.model('Merchant', merchantSchema);
+const Transaction = mongoose.model('Transaction', transactionSchema);
+
+// ----- 3. FRONTEND ROUTE -----
+
+// This serves your index.html when you visit the main URL
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'), (err) => {
+        if (err) {
+            console.error("File Error:", err);
+            res.status(500).send("<h1>Server is Live</h1><p>Error: index.html not found in root directory.</p>");
+        }
+    });
+});
+
+// ----- 4. API ROUTES -----
+
+// Signup
 app.post('/api/signup', async (req, res) => {
     const { name, wallet, email, pin } = req.body;
+    if(!name || !wallet || !email || !pin) return res.json({ success: false, error: "All fields required" });
+
     try {
         const exists = await Merchant.findOne({ email });
-        if(exists) return res.json({ success: false, error: "Email exists" });
+        if(exists) return res.json({ success: false, error: "Email already registered" });
+
         const merchant = new Merchant({ name, wallet, email, pin });
         await merchant.save();
         res.json({ success: true });
     } catch(err) {
-        res.json({ success: false, error: "Server error" });
+        console.error(err);
+        res.json({ success: false, error: "Server error during signup" });
     }
 });
 
-// API: Login
+// Login
 app.post('/api/login', async (req, res) => {
     const { email, pin } = req.body;
     try {
@@ -63,6 +85,27 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// ----- 4. START SERVER -----
+// Payment
+app.post('/api/payment', async (req, res) => {
+    const { email, wallet, amount, method } = req.body;
+    try {
+        const tx = new Transaction({
+            merchantEmail: email,
+            type: method,
+            inputAmt: amount,
+            localAmt: amount, 
+            cur: 'KES',
+            flow: 'IN'
+        });
+        await tx.save();
+        res.json({ success: true, transaction: tx });
+    } catch(err) {
+        res.json({ success: false, error: "Payment failed" });
+    }
+});
+
+// ----- 5. START SERVER -----
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`🚀 App live at http://localhost:${PORT}`));
+app.listen(PORT, () => {
+    console.log(`🚀 LIPA SME running on port ${PORT}`);
+});
