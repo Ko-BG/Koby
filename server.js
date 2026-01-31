@@ -1,103 +1,180 @@
+// server.js
+require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
+const path = require('path');
+const { Pool } = require('pg');
 const axios = require('axios');
-const dotenv = require('dotenv');
-dotenv.config();
 
 const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware
 app.use(cors());
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, 'public'))); // Your HTML/JS in /public
 
-const PORT = process.env.PORT || 10000;
-
-// In-memory storage for demo purposes
-let merchants = [];
-let transactions = [];
-
-// Serve frontend
-app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/index.html');
+// PostgreSQL Pool
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
 });
 
-// Merchant onboarding
-app.post('/api/signup', (req, res) => {
-  const { name, wallet, email, pin } = req.body;
-  if (!name || !wallet || !email || !pin) return res.status(400).json({ error: "All fields required" });
-  const merchant = { id: merchants.length+1, name, wallet, email, pin };
-  merchants.push(merchant);
-  return res.json({ success: true, merchant });
-});
+// Initialize DB tables
+async function initDB() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS merchants (
+      id SERIAL PRIMARY KEY,
+      name TEXT,
+      wallet TEXT,
+      email TEXT UNIQUE,
+      pin TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+  `);
 
-// Merchant login
-app.post('/api/login', (req, res) => {
-  const { email, pin } = req.body;
-  const merchant = merchants.find(m => m.email === email && m.pin === pin);
-  if (!merchant) return res.status(401).json({ error: "Invalid credentials" });
-  return res.json({ success: true, merchant });
-});
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS logs (
+      id SERIAL PRIMARY KEY,
+      merchant_email TEXT,
+      action TEXT,
+      timestamp TIMESTAMP DEFAULT NOW()
+    );
+  `);
 
-// Generate Daraja OAuth token
-async function getDarajaToken() {
-  const url = "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials";
-  const auth = Buffer.from(`${process.env.MPESA_CONSUMER_KEY}:${process.env.MPESA_CONSUMER_SECRET}`).toString('base64');
-  try {
-    const res = await axios.get(url, { headers: { Authorization: `Basic ${auth}` } });
-    return res.data.access_token;
-  } catch (err) {
-    console.error(err.response?.data || err.message);
-    return null;
-  }
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS transactions (
+      id SERIAL PRIMARY KEY,
+      merchant_email TEXT,
+      phone TEXT,
+      amount NUMERIC,
+      account_ref TEXT,
+      status TEXT,
+      timestamp TIMESTAMP DEFAULT NOW()
+    );
+  `);
+
+  console.log('✅ Database Initialized');
 }
 
-// STK Push
-app.post('/api/stkpush', async (req, res) => {
-  const { phone, amount, accountRef } = req.body;
-  if (!phone || !amount || !accountRef) return res.status(400).json({ error: "Missing fields" });
+initDB();
 
-  const token = await getDarajaToken();
-  if (!token) return res.status(500).json({ error: "Cannot get Daraja token" });
+// ---------------- MERCHANT ENDPOINTS ----------------
 
-  const timestamp = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0,14);
-  const password = Buffer.from(`${process.env.MPESA_SHORTCODE}${process.env.MPESA_PASS}${timestamp}`).toString('base64');
-
-  const payload = {
-    BusinessShortCode: process.env.MPESA_SHORTCODE,
-    Password: password,
-    Timestamp: timestamp,
-    TransactionType: "CustomerPayBillOnline",
-    Amount: amount,
-    PartyA: phone,
-    PartyB: process.env.MPESA_SHORTCODE,
-    PhoneNumber: phone,
-    CallBackURL: process.env.MPESA_CALLBACK_URL,
-    AccountReference: accountRef,
-    TransactionDesc: "Payment to merchant"
-  };
-
+// Signup
+app.post('/api/signup', async (req, res) => {
+  const { name, wallet, email, pin } = req.body;
+  if (!name || !wallet || !email || !pin) return res.status(400).json({ error: "All fields required" });
+  
   try {
-    const stkRes = await axios.post('https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest', payload, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    transactions.push({ phone, amount, accountRef, status: 'PENDING', timestamp: new Date() });
-    return res.json(stkRes.data);
+    const result = await pool.query(
+      `INSERT INTO merchants (name, wallet, email, pin) VALUES ($1,$2,$3,$4) RETURNING *`,
+      [name, wallet, email, pin]
+    );
+    await pool.query(`INSERT INTO logs (merchant_email, action) VALUES ($1,'signup')`, [email]);
+    res.json({ success: true, merchant: result.rows[0] });
   } catch (err) {
-    console.error(err.response?.data || err.message);
-    return res.status(500).json({ error: "STK Push failed" });
+    console.error(err);
+    res.status(500).json({ error: "Signup failed" });
   }
 });
 
-// Daraja callback
-app.post('/mpesa/callback', (req, res) => {
-  const data = req.body;
-  console.log("Daraja Callback:", JSON.stringify(data, null, 2));
-  
-  // Update transaction status
-  const trx = transactions.find(t => t.accountRef === data.Body.stkCallback?.Body?.AccountReference);
-  if(trx) trx.status = data.Body.stkCallback.ResultCode === 0 ? 'SUCCESS' : 'FAILED';
-
-  res.json({ ResultCode: 0, ResultDesc: "Received" });
+// Login
+app.post('/api/login', async (req, res) => {
+  const { email, pin } = req.body;
+  try {
+    const result = await pool.query(`SELECT * FROM merchants WHERE email=$1 AND pin=$2`, [email, pin]);
+    const merchant = result.rows[0];
+    if (!merchant) return res.status(401).json({ error: "Invalid credentials" });
+    await pool.query(`INSERT INTO logs (merchant_email, action) VALUES ($1,'login')`, [email]);
+    res.json({ success: true, merchant });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Login failed" });
+  }
 });
 
-app.listen(PORT, () => console.log(`🚀 LIPA SME running on port ${PORT}`));
+// ---------------- PAYMENT ENDPOINT ----------------
+
+// Daraja STK Push
+app.post('/api/stkpush', async (req, res) => {
+  const { phone, amount, accountRef, email } = req.body;
+  if (!phone || !amount || !accountRef || !email) return res.status(400).json({ error: "Missing fields" });
+
+  try {
+    // Log attempt
+    await pool.query(`INSERT INTO logs (merchant_email, action) VALUES ($1,'stkpush_attempt')`, [email]);
+
+    // Get Daraja token
+    const tokenResponse = await axios.get(`https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials`, {
+      auth: { username: process.env.DARAJA_CONSUMER_KEY, password: process.env.DARAJA_CONSUMER_SECRET }
+    });
+
+    const token = tokenResponse.data.access_token;
+
+    const timestamp = new Date().toISOString().replace(/[-:TZ.]/g,"").slice(0,14);
+    const password = Buffer.from(`${process.env.BUSINESS_SHORTCODE}${process.env.PASSKEY}${timestamp}`).toString('base64');
+
+    // STK Push request
+    const stkPayload = {
+      BusinessShortCode: process.env.BUSINESS_SHORTCODE,
+      Password: password,
+      Timestamp: timestamp,
+      TransactionType: "CustomerPayBillOnline",
+      Amount: amount,
+      PartyA: phone,
+      PartyB: process.env.BUSINESS_SHORTCODE,
+      PhoneNumber: phone,
+      CallBackURL: `${process.env.HOST_URL}/api/callback`,
+      AccountReference: accountRef,
+      TransactionDesc: `Payment to ${email}`
+    };
+
+    const stkResponse = await axios.post('https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest', stkPayload, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    await pool.query(
+      `INSERT INTO transactions (merchant_email, phone, amount, account_ref, status) VALUES ($1,$2,$3,$4,$5)`,
+      [email, phone, amount, accountRef, 'PENDING']
+    );
+
+    res.json({ success: true, data: stkResponse.data });
+  } catch (err) {
+    console.error(err.response?.data || err);
+    res.status(500).json({ error: "STK Push failed" });
+  }
+});
+
+// Daraja Callback
+app.post('/api/callback', async (req, res) => {
+  try {
+    const body = req.body;
+    const checkoutId = body.Body.stkCallback.CheckoutRequestID;
+    const resultCode = body.Body.stkCallback.ResultCode;
+
+    let status = resultCode === 0 ? 'SUCCESS' : 'FAILED';
+
+    await pool.query(
+      `UPDATE transactions SET status=$1 WHERE account_ref=$2`,
+      [status, checkoutId]
+    );
+
+    // Log callback
+    await pool.query(`INSERT INTO logs (merchant_email, action) VALUES ($1,$2)`, [body.merchant_email || 'unknown', `stkpush_${status}`]);
+
+    res.sendStatus(200);
+  } catch (err) {
+    console.error(err);
+    res.sendStatus(500);
+  }
+});
+
+// ---------------- SERVE FRONTEND ----------------
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// ---------------- START SERVER ----------------
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
