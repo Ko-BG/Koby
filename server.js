@@ -11,51 +11,46 @@ app.use(cors());
 const MONGO_URI = "mongodb+srv://gilliannyangaga95_db_user:iG73g3IoSQlYtMCJ@cluster0.6vqjwsd.mongodb.net/?appName=Cluster0";
 
 mongoose.connect(MONGO_URI)
-  .then(() => console.log("Connected to MongoDB Hub"))
-  .catch(err => console.error("Connection Error:", err));
+    .then(() => console.log("LIPA SME: Connected to MongoDB"))
+    .catch(err => console.error("MongoDB Connection Error:", err));
 
-// Merchant Schema
+// Database Schema
 const merchantSchema = new mongoose.Schema({
     name: String,
     wallet: String,
     email: { type: String, unique: true },
-    pin: String,
-    fiat: { type: Number, default: 25000 },
-    vault: { type: Number, default: 80000 },
-    crypto: { type: Number, default: 50 }
+    pin: String
 });
-
 const Merchant = mongoose.model('Merchant', merchantSchema);
 
-// API Endpoints
+// Auth APIs
 app.post('/api/signup', async (req, res) => {
     try {
         const merchant = new Merchant(req.body);
         await merchant.save();
         res.json({ success: true });
     } catch (err) {
-        res.status(400).json({ success: false, error: "Email already registered" });
+        res.status(400).json({ success: false, error: "Email already exists" });
     }
 });
 
 app.post('/api/login', async (req, res) => {
     const { email, pin } = req.body;
-    const merchant = await Merchant.findOne({ email, pin });
-    if (merchant) {
-        res.json({ success: true, merchant });
-    } else {
-        res.status(401).json({ success: false, error: "Invalid Credentials" });
+    try {
+        const merchant = await Merchant.findOne({ email, pin });
+        if (merchant) res.json({ success: true, merchant });
+        else res.status(401).json({ success: false, error: "Invalid credentials" });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "Server error" });
     }
 });
 
-app.post('/api/payment', async (req, res) => {
-    // This acknowledges the payment on the server side
-    // In a production app, you'd update balances in the DB here
-    res.json({ success: true });
+app.post('/api/payment', (req, res) => res.json({ success: true }));
+
+// Serve HTML from ROOT
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Serve the HTML file
-app.use(express.static(path.join(__dirname, 'public')));
-
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Hub running on port ${PORT}`));
