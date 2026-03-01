@@ -250,10 +250,20 @@
 
 <div id="dialogueBox"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 
 <script>
+    function connectToServer() {
+        const name = document.getElementById('nameInput').value || "ANON_UNIT";
+        
+        // This is where the connection happens!
+        socket = io("http://localhost:3000"); 
+        
+        socket.emit('join', { name: name });
+        // ... rest of your code
+    }
+</script>
+
 // ──────────────────────────────────────────────
 // Your original logic remains almost unchanged
 // ──────────────────────────────────────────────
