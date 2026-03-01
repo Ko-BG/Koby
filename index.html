@@ -13,6 +13,7 @@
             --text: #e0e0ff;
             --text-dim: #a0a0cc;
             --accent-cyan: #00f0ff;
+            --danger: #ff003c;
         }
 
         * {
@@ -63,6 +64,14 @@
         #pName {
             color: var(--accent-cyan);
             font-weight: 600;
+        }
+
+        /* STORY TICKET / MISSION ───────────── */
+        #mission-card {
+            background: linear-gradient(45deg, rgba(255, 102, 0, 0.2), rgba(0, 240, 255, 0.1));
+            border-left: 4px solid var(--neon);
+            margin-top: 10px;
+            display: none;
         }
 
         /* CHAT ──────────────────────────────── */
@@ -197,29 +206,46 @@
             box-shadow: 0 0 40px var(--neon), 0 0 80px var(--neon-glow);
         }
 
+        /* ANIME DIALOGUE SYSTEM ────────────── */
         #dialogueBox {
             position: absolute;
             bottom: 60px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(10, 10, 25, 0.9);
-            backdrop-filter: blur(8px);
-            border-top: 4px solid var(--neon);
-            border-radius: 12px 12px 0 0;
-            padding: 20px 28px;
-            width: min(70%, 680px);
-            max-width: 90vw;
+            background: rgba(10, 10, 25, 0.95);
+            backdrop-filter: blur(15px);
+            border: 2px solid var(--neon);
+            border-radius: 12px;
+            padding: 24px;
+            width: min(80%, 800px);
             color: white;
-            box-shadow: 0 -10px 40px var(--neon-glow);
+            box-shadow: 0 0 50px rgba(255, 102, 0, 0.3);
             display: none;
-            font-size: 1.1rem;
-            line-height: 1.5;
+            z-index: 1000;
+        }
+
+        .dialogue-header {
+            color: var(--neon);
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--neon-glow);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .anime-text {
+            font-size: 1.2rem;
+            line-height: 1.6;
+            font-style: italic;
         }
 
         @media (max-width: 600px) {
             #gui { left: 8px; top: 8px; }
             .hud { min-width: 180px; font-size: 0.85rem; padding: 10px 12px; }
             #chat-container { bottom: 8px; left: 8px; width: calc(100% - 16px); height: 45vh; }
+            .overlay h2 { font-size: 2rem; }
         }
     </style>
 </head>
@@ -228,8 +254,14 @@
 <div id="gui">
     <div class="hud">
         <div>PLAYER: <span id="pName">Tileh</span></div>
-        <div>STATUS: <span style="color:var(--accent-cyan)">ONLINE</span></div>
+        <div>STATUS: <span style="color:var(--accent-cyan)">MOTOR_COMBAT_READY</span></div>
     </div>
+    
+    <div id="mission-card" class="hud">
+        <strong>CURRENT MISSION:</strong>
+        <div id="mission-text" style="color: var(--accent-cyan); margin-top: 4px;">Locate the Siren of CBD.</div>
+    </div>
+
     <div class="hud">
         <strong>GLOBAL LEADERBOARD</strong>
         <div id="lb-data" style="margin-top:6px; font-size:0.85rem; color:var(--text-dim);"></div>
@@ -238,24 +270,34 @@
 
 <div id="chat-container">
     <div id="chat-logs"></div>
-    <input type="text" id="chat-input" placeholder="Type message… (Enter to send)" maxlength="120">
+    <input type="text" id="chat-input" placeholder="Broadcast to Nairobi... (Enter)" maxlength="120">
 </div>
 
 <div id="customizer" class="overlay">
-    <h2>LOVE IN NAIROBI</h2>
-    <p>Buff Edition – Multiplayer Edition</p>
-    <input type="text" id="nameInput" placeholder="Enter your nickname..." style="padding:14px 18px; margin:20px 0; width:320px; max-width:80vw; border:1px solid var(--neon-glow); border-radius:6px; background:#111118; color:var(--text); font-size:1.1rem; outline:none;">
-    <button class="btn" onclick="connectToServer()">START MULTIPLAYER</button>
+    <h2>NAIROBI LOVE CHASE</h2>
+    <p>The MotorCombat Quest – Buff Edition</p>
+    <div style="margin: 10px; color: var(--accent-cyan); font-size: 0.9rem; max-width: 400px;">
+        "In a city where love is the ultimate prize and speed is the only language, 
+        one warrior must race through the neon streets of Nairobi to reclaim his destiny."
+    </div>
+    <input type="text" id="nameInput" placeholder="Enter Warrior Name..." style="padding:14px 18px; margin:20px 0; width:320px; max-width:80vw; border:1px solid var(--neon-glow); border-radius:6px; background:#111118; color:var(--text); font-size:1.1rem; outline:none;">
+    <button class="btn" onclick="connectToServer()">INITIATE CHASE</button>
 </div>
 
-<div id="dialogueBox"></div>
+<div id="dialogueBox">
+    <div class="dialogue-header">
+        <span id="speaker-name">SYSTEM</span>
+        <span style="font-size: 0.7rem; color: var(--text-dim);">[PRESS SPACE TO CONTINUE]</span>
+    </div>
+    <div id="anime-message" class="anime-text"></div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 
 <script>
 // ──────────────────────────────────────────────
-// Your original logic remains preserved
+// Original Logic Preserved
 // ──────────────────────────────────────────────
 
 let socket, scene, camera, renderer, player, city;
@@ -266,19 +308,51 @@ const chatLogs = document.getElementById('chat-logs');
 
 const playerImg = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccqhmAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAhdEVYdENyZWF0ZWQgd2l0aCBHSU1QIG9uIGEgTWFj4mS4mAAAQ4NJREFUeF7tfQe4XUX5vpt7k5tccsveC7nn3kvuDQm9V5HeLVD86F+wYAGpAiJEiiA9gErvUvReA4TQQhJCb5fce25K2fvNnO+b75vznbNnZ3bve1OYeZ49d3bOnDkzc8vOzC9vO9UoQ9M0Gk0XqKkZpFFoNDFpDNDEpDFAExPGQE1MGoUf4fW/73O7/5/f9Lnf4eM43P98L/m/vG9rGq1v0hhAY4AmJo2BWjNArRnAaxmAV2p/E69pNAZqDNDGpDFQi0Z4jUa69v84Dve7v7mf+6XffN8IrzUG0BigiUljAM346P+fV/Ld/+V9I7xmDEAbg9bWGEAzPka/Ea/f77zS777Pfe7z5HshGMEArzEA0MagsfGPH/0GvNpvfr/vN797v9b+H85b+43p90EAzfho/Uacft//vd/4jFeyj5P+XogBGAwQaGMAbeL6zfgY/Ea8dr/f3NfeRz5Ofof3Tfd58H0ggMYAfX6P3m+jNfFp/IOfxuvb77X/5fO/E5/+fLjv9Tq+j5M+D/LxfmDAnAAsmBOAxoA5AWgMmBOAxsBn4wTA7w8N8H7S//K59O8v8F1jgPkRQP/5/H7nd8b7zftP7mvvt/dbBvAnAF8IxhgA4wTAA4AHAAsA97f3G/E+TqBf37dMAAAM8EUAqAmv9pvb/5v3X98v38e4XgB8IQBjAIAHAn8A8AAg//M+k+8R7+f9Y7/A/H3fEwYA9L8P6v8O0P4u1P4GfO3/5nt+Zf6X7+W76AOBbL8Tnx/fN6D/I4D29+H/A+jv8P8O+v5p9L8DP59G/7uAfvYfP9tGvO53fs7f4f/H7X/+j/s7//0BvvZf//nC5y8fD6Bf//9B//399j7yM7y/vH+839pveP8E73wPgH6O6O+O/m74O6X/P4CofvS//Y8e7zWf9f/jffW5p/+Pz//3//7v9PnvgT5vYQzAXwnAmAAsAmMCoBB+SgAaAyLwKQAQAWAEYAQAv4vXbXhP5/f8m/+t+S4EwP2hATX+QAC+4R4AhAbwM6A/9H8Hff8E/Lz+r8TP+Lv6Pwn/W/Nf9PnjC68D/O8Hfd4I/9sDfT4D/h6//n/w+f/+nvT39PeS/49v//696e//e/+f8b668f+xX/7395Hf5fc5v8N/An/vj//X//33vof7m+X/zff2e8v/mffL97Bf4f0S6PPz8/N7pM+L//+/4Nf3u6DP+6Hf80G/+6e/v7/bA6D//O9C3+f874HeN86fK7//j5//H/T+9X8v8H/5N7xf5XvP/4DIn5+fn6C//3e8/8X/mffX5/9e4H//H/t7v9wP+/9+8X94H3//D/+3/+P+ZvF//A9fB+p/R/+3bofvI9/P/S68v+P3+N+e3+F3uN//H/+r+9X9L+T//+9//X5uB/p5Ev0/UX8PvOf78fX/j787wM+Pfx7+LpGvL/R//f0CvY99H//bF94X/m+X//m56PvH9+H/A/V9F8rfrf8/rP/N7//vX3uL3+X/bofvdvhe7wXfS+4P9/c/xN/u/w+f/w+Rfwff8//6/9/K//K/+f/+X/I95Pf5XpX/W/u//Pz6/1z/v6y///+7X/9//L/5uHw//p6e/z//19/+9/eW94X/7Vf8m48X6f/6W0X6OfGzffv7v//6v59//h/0u/2+/570//6//27/f/+7w//9/w6/w8//9b8v8Tf+/Tf9G/++D/9/E//4/939H//X//X38vfB68Y//9+A//09wL+P93/+N8f//T3x7/74ff/e//O+v//vX/+76e9Mvjvp706+S/+7w+8C/X0S39f0PfJ6+/sBv9P6uXf4O/4O6OvG7//H/+v3v15//+Pne5O/M99/vvd87/neC3xX+N8C7xf4rvDvC99X/q/+X3l/eT9Fvxvk//r94bV/R/7v+b8R/T65fXv/+V35/XmffA97f/k+//8D6f/w+f/+3f34//q/m/v7Xfj+n4B/C/8N/Bv4Ofzff6v8b+H/Wv//K//v/p+m5//5Tj+nP7uX//u/ffp/+t8C/S4T71ffj6+/TfN/P5//mO8V/27wPwO/P//X/wX+/w/wP99X/m/5/7n6//L74D/w+vH/v8B/VfmZvtffD0D9b/0//Pz4//X38vf7+4X7A/2/Afy//n7mB//vA8j/Gf7//+3//98E/k/4P5X+OfD/OPh35v//N/+/+P/O7wS+M/h+Tf/D//P//3vC7/H+L/4X/N/+fv5/5v+S9A/+v98b7B+A/x/+D//H//n//v+q/6//x//9W/H5//n//v8E8X/w/wz8Pvzfmffp+/P/f/p78f+D//5/wN/3AfC5///7H+m78f9y5ff6e/r8e34u8P/w8zH4+5P/I+jfMv7mBPCz578Z+D8Afx/wN+Dr/8v35evm+p//w8+H/+fvQf8n/N/E/45ff6fId5H+DvjZ7z/wewb/94HfC/B/Af8X8D9/j+O/Bv1dfL/8Pv4+/z78X/0OfF//X74X//+/+N//J4E/W+Rn8O8n7fP5X75m4Of4eXv/9fvG5/t5/A4/1++C//H/OPl+Xv8v4ff4/wz//8P/6//b9+/wN/D3/0L8DPr9U/+/H3D/9b+T/n8K+NnzfU7/Fvi7C/idU//z//496P8X+P++X/6en+/X4M/G5+bnwO/Pz/P//Y//Xf5///8R/v8Xf8P/+Xv/fP//iP/X+yP+/8OfCfT7J/1uE33u5//8Bvye//f9Afq//v/zH/N//I8/4//7X57795fv4Of8//R7P8X98H4Hfj79r3+f5+fz5/9OAn4W/x8Cvv9f//X8D7wA8L+X/5P8vRHe/MvPzv/w/A9wI/7wZf/58//f94v9/f9zvw++X//H5X/wG//737/fB/Av9/m7+7//vffz/8vRHe/H8Pf/fP+/87/N//97+7/+XfO+D/5O++5n+5X3j+f/mdf8f9HfhZv8N/7X45+e5O/m5D5Dfhf/v9wffn+/P//V05+b6m79G/G//796/vC4De708A+Hnw907y7+f/+r3B/y7w5wN/9/H7eF//G//uI9/zBPX9V/p7T4b3W7z/K/xN/H+N+w4/u+P36Gfe3/e7458Fv7f//5//+t8E8pM9C//3f9/nOf938TveL74XP1+4X/8f9H/X9f8z8Xfy//t/9/3B5y/p8/K/IuD7v6f/v/b7Xfj+v4D/X6i/X2B/X/65/D8/n99Bv8vP63+n/3uXf9/8/v5//O+A//v4/d5u+54L/A4P771L/X9Y/+f4G/+f87/9zW/+O+Bf4v/8H//P+A/+z8/G/+H//YwP49/+jP+v91f8X9X+3v+zX/K//J9//G/v//5//+/+n/9//z//v8=";
 
+// Anime Story Variables
+const storyLine = [
+    { name: "SGT. TILEH", msg: "Visual contact confirmed. The target is moving through the Upper Hill neon sector." },
+    { name: "HQ", msg: "Careful, Sergeant. The MotorCombat syndicate has eyes everywhere. Don't let your heart cloud your optics." },
+    { name: "SGT. TILEH", msg: "In Nairobi, we don't just chase love... we fight for it. Engaging thrusters." }
+];
+let currentStoryStep = 0;
+
 function connectToServer() {
     const name = document.getElementById('nameInput').value.trim() || "Tileh";
     document.getElementById('pName').innerText = name;
     document.getElementById('customizer').style.display = 'none';
     document.getElementById('chat-container').style.display = 'flex';
+    document.getElementById('mission-card').style.display = 'block';
 
-    // Socket Initialization moved here
     socket = io(); 
     socket.emit('join', { name: name, color: 0xffffff });
 
     init3D();
     setupNetworkListeners();
+    startAnimeIntro();
 }
+
+function startAnimeIntro() {
+    const box = document.getElementById('dialogueBox');
+    box.style.display = 'block';
+    showDialogue();
+}
+
+function showDialogue() {
+    if (currentStoryStep < storyLine.length) {
+        document.getElementById('speaker-name').innerText = storyLine[currentStoryStep].name;
+        document.getElementById('anime-message').innerText = storyLine[currentStoryStep].msg;
+    } else {
+        document.getElementById('dialogueBox').style.display = 'none';
+    }
+}
+
+// Listen for Spacebar to progress anime story
+document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' && document.getElementById('dialogueBox').style.display === 'block') {
+        currentStoryStep++;
+        showDialogue();
+    }
+});
 
 function init3D() {
     scene = new THREE.Scene();
@@ -319,6 +393,10 @@ function createNairobi() {
         );
         b.position.set(Math.random() * 240 - 120, h / 2, Math.random() * 240 - 120);
         scene.add(b);
+        
+        // Add neon window effect
+        const wire = new THREE.BoxHelper(b, 0xff6600);
+        scene.add(wire);
     }
 }
 
