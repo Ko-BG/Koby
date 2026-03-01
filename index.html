@@ -250,17 +250,12 @@
 
 <div id="dialogueBox"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 
-<script src="/socket.io/socket.io.js"></script>
 <script>
-    // Inside your connectToServer function:
-    socket = io(); // No URL needed inside the parentheses if hosted on same port
-</script>
-
-
 // ──────────────────────────────────────────────
-// Your original logic remains almost unchanged
+// Your original logic remains preserved
 // ──────────────────────────────────────────────
 
 let socket, scene, camera, renderer, player, city;
@@ -277,7 +272,8 @@ function connectToServer() {
     document.getElementById('customizer').style.display = 'none';
     document.getElementById('chat-container').style.display = 'flex';
 
-    socket = io();
+    // Socket Initialization moved here
+    socket = io(); 
     socket.emit('join', { name: name, color: 0xffffff });
 
     init3D();
