@@ -1,100 +1,96 @@
-require('dotenv').config();
 const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
+const http = require('http');
+const { Server } = require('socket.io');
 const path = require('path');
-const axios = require('axios');
 
 const app = express();
-app.use(express.json());
-app.use(cors());
-
-// MongoDB Connection
-const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://gilliannyangaga95_db_user:iG73g3IoSQlYtMCJ@cluster0.6vqjwsd.mongodb.net/?appName=Cluster0";
-mongoose.connect(MONGO_URI).then(() => console.log("LIPA SME: Connected to MongoDB"));
-
-// Refactored Schema: Added balances and transaction history
-const merchantSchema = new mongoose.Schema({
-    name: String,
-    wallet: String, // Stored as 07... but formatted for M-Pesa
-    email: { type: String, unique: true },
-    pin: String,
-    fiat: { type: Number, default: 0 },
-    vault: { type: Number, default: 0 },
-    cryptoUSDT: { type: Number, default: 0 },
-    history: [{ type: String, amount: Number, flow: String, date: { type: Date, default: Date.now } }]
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: { origin: "*" } // Allows connections from different ports during dev
 });
-const Merchant = mongoose.model('Merchant', merchantSchema);
 
-// --- DARAJA AUTH MIDDLEWARE ---
-const getDarajaToken = async (req, res, next) => {
-    const secret = process.env.DARAJA_CONSUMER_SECRET;
-    const key = process.env.DARAJA_CONSUMER_KEY;
-    const auth = Buffer.from(`${key}:${secret}`).toString('base64');
-    try {
-        const { data } = await axios.get("https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials", {
-            headers: { Authorization: `Basic ${auth}` }
-        });
-        req.daraja_token = data.access_token;
-        next();
-    } catch (err) { res.status(401).json({ error: "Daraja Auth Failed" }); }
+// --- GAME DATABASE ---
+const state = {
+    players: {},
+    leaderboard: [
+        { name: "Tileh", score: 9999 },
+        { name: "NairobiRay", score: 8500 }
+    ]
 };
 
-// --- API: INITIATE STK PUSH (Send money to app) ---
-app.post('/api/stkpush', getDarajaToken, async (req, res) => {
-    const { email, amount } = req.body;
-    const merchant = await Merchant.findOne({ email });
-    if (!merchant) return res.status(404).json({ error: "Merchant not found" });
+// Serve static files from the 'public' folder
+app.use(express.static(path.join(__dirname, 'public')));
 
-    const phone = merchant.wallet.startsWith('0') ? '254' + merchant.wallet.slice(1) : merchant.wallet;
-    const timestamp = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14);
-    const password = Buffer.from(process.env.DARAJA_SHORTCODE + process.env.DARAJA_PASSKEY + timestamp).toString('base64');
+// --- SOCKET LOGIC ---
+io.on('connection', (socket) => {
+    console.log(`NEW CONNECTION: ${socket.id}`);
 
-    try {
-        const response = await axios.post("https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest", {
-            BusinessShortCode: process.env.DARAJA_SHORTCODE,
-            Password: password,
-            Timestamp: timestamp,
-            TransactionType: "CustomerPayBillOnline",
-            Amount: amount,
-            PartyA: phone,
-            PartyB: process.env.DARAJA_SHORTCODE,
-            PhoneNumber: phone,
-            CallBackURL: `${process.env.RENDER_URL}/api/callback`,
-            AccountReference: "LIPA_SME_HUB",
-            TransactionDesc: "Wallet Deposit"
-        }, { headers: { Authorization: `Bearer ${req.daraja_token}` } });
+    // 1. JOINING THE GAME
+    socket.on('join', (data) => {
+        state.players[socket.id] = {
+            id: socket.id,
+            name: data.name || "Nairobi Legend",
+            x: Math.random() * 10, // Random spawn
+            z: Math.random() * 10,
+            color: data.color || 0xffffff,
+            lastSeen: Date.now()
+        };
 
-        res.json({ success: true, message: "PIN prompt sent to phone" });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+        // Sync new player with the current world state
+        socket.emit('currentPlayers', state.players);
+        socket.emit('updateLeaderboard', state.leaderboard);
+        
+        // Notify others
+        socket.broadcast.emit('newPlayer', state.players[socket.id]);
+    });
+
+    // 2. MOVEMENT SYNC
+    socket.on('playerMovement', (movementData) => {
+        if (state.players[socket.id]) {
+            // Update the "Source of Truth"
+            state.players[socket.id].x = movementData.x;
+            state.players[socket.id].z = movementData.z;
+            state.players[socket.id].lastSeen = Date.now();
+
+            // Broadcast only to other players to save bandwidth
+            socket.broadcast.emit('playerMoved', state.players[socket.id]);
+        }
+    });
+
+    // 3. EMOTES / CHAT (Optional add-on)
+    socket.on('sendMessage', (msg) => {
+        io.emit('newMessage', { 
+            name: state.players[socket.id].name, 
+            text: msg 
+        });
+    });
+
+    // 4. DISCONNECTION
+    socket.on('disconnect', () => {
+        console.log(`PLAYER LEFT: ${socket.id}`);
+        delete state.players[socket.id];
+        io.emit('playerDisconnected', socket.id);
+    });
 });
 
-// --- API: CALLBACK (Where Safaricom sends payment results) ---
-app.post('/api/callback', async (req, res) => {
-    const callbackData = req.body.Body.stkCallback;
-    if (callbackData.ResultCode === 0) {
-        const amount = callbackData.CallbackMetadata.Item.find(i => i.Name === "Amount").Value;
-        const phone = callbackData.CallbackMetadata.Item.find(i => i.Name === "PhoneNumber").Value.toString();
-        const formattedPhone = '0' + phone.slice(3); // Convert 2547... back to 07...
-
-        await Merchant.findOneAndUpdate(
-            { wallet: formattedPhone },
-            { 
-                $inc: { fiat: amount }, 
-                $push: { history: { type: "M-Pesa Deposit", amount, flow: "IN" } } 
-            }
-        );
+// --- SERVER HEARTBEAT ---
+// Clean up "ghost" players who crashed without disconnecting
+setInterval(() => {
+    const now = Date.now();
+    for (let id in state.players) {
+        if (now - state.players[id].lastSeen > 10000) { // 10 seconds timeout
+            delete state.players[id];
+            io.emit('playerDisconnected', id);
+        }
     }
-    res.json("OK");
+}, 5000);
+
+const PORT = 3000;
+server.listen(PORT, () => {
+    console.log(`
+    ====================================
+    NAIROBI MULTIPLAYER SERVER STARTED
+    URL: http://localhost:${PORT}
+    ====================================
+    `);
 });
-
-// --- API: GET BALANCE (For frontend to stay synced) ---
-app.get('/api/balance/:email', async (req, res) => {
-    const merchant = await Merchant.findOne({ email: req.params.email });
-    res.json({ fiat: merchant.fiat, vault: merchant.vault, cryptoUSDT: merchant.cryptoUSDT, history: merchant.history });
-});
-
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
