@@ -57,12 +57,20 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 3. EMOTES / CHAT (Optional add-on)
-    socket.on('sendMessage', (msg) => {
-        io.emit('newMessage', { 
-            name: state.players[socket.id].name, 
-            text: msg 
-        });
+    // 3. CHAT SYSTEM (The Relay)
+    // Listens for a message and broadcasts it to the whole city
+    socket.on('chatMessage', (msg) => {
+        if (state.players[socket.id]) {
+            const chatData = {
+                name: state.players[socket.id].name,
+                text: msg,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+            
+            // Broadcast to all connected clients
+            io.emit('newMessage', chatData); 
+            console.log(`[CHAT] ${chatData.name}: ${msg}`);
+        }
     });
 
     // 4. DISCONNECTION
@@ -85,12 +93,14 @@ setInterval(() => {
     }
 }, 5000);
 
-const PORT = 3000;
+// --- CLOUD READY LISTENER ---
+// Uses process.env.PORT for Heroku/Render/Railway compatibility
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`
     ====================================
     NAIROBI MULTIPLAYER SERVER STARTED
-    URL: http://localhost:${PORT}
+    Port: ${PORT}
     ====================================
     `);
 });
