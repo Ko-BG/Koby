@@ -1,409 +1,151 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>LIPA • SME Pan-African Hub 2026</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Space+Mono&display=swap" rel="stylesheet">
-<style>
-:root {
-    --bg:#020617; --card:#0f172a; --text:#f8fafc;
-    --accent:#10b981; --crypto:#f59e0b; --vault-color:#8b5cf6;
-    --border:#1e293b; --muted:#94a3b8; --danger:#ef4444;
-}
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);padding:12px;line-height:1.4;}
-.container{max-width:1100px;margin:0 auto;padding-bottom:80px;}
-.page { display: none; }
-.active-page { display: block; }
-h1{font-size:1.4rem;font-weight:800;letter-spacing:-1px;}
-.tagline{font-size:0.8rem;color:var(--muted);margin-bottom:20px;}
-.auth-container { max-width: 400px; margin: 60px auto; text-align: center; }
-.auth-card { background: var(--card); border: 1px solid var(--border); padding: 30px; border-radius: 28px; }
-.card{background:var(--card);border:1px solid var(--border);border-radius:28px;padding:22px;margin-bottom:16px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.3);}
-.card-title{font-size:0.7rem;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;}
-.bal-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:15px;}
-.bal-item{background:rgba(0,0,0,0.3);padding:15px;border-radius:20px;border:1px solid var(--border);}
-.bal-val{font-size:1.6rem;font-weight:800;color:var(--accent);}
-.bal-sub{font-family:'Space Mono';font-size:0.85rem;color:var(--crypto);}
-.analytics-container { display: flex; align-items: flex-end; justify-content: space-around; height: 120px; padding-top: 15px; border-top: 1px solid var(--border); }
-.bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.bar { width: 15px; background: var(--accent); border-radius: 4px 4px 0 0; transition: height 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); min-height: 2px; }
-.bar-label { font-size: 0.6rem; font-weight: 800; color: var(--muted); }
-button{width:100%;padding:16px;border:none;border-radius:16px;font-weight:700;cursor:pointer;transition:0.2s;font-size:0.95rem; margin-bottom: 8px;}
-button:active{transform:scale(0.98);}
-.btn-primary{background:var(--accent);color:#064e3b;}
-.btn-vault{background:var(--vault-color);color:white;}
-.btn-swap{background:#1e293b;color:var(--crypto);border:1px solid var(--crypto);}
-.btn-withdraw{background:#1e293b;color:white;border:1px solid var(--border);}
-.btn-logout{background:var(--danger);color:white; font-size: 0.7rem; padding: 8px 12px; width: auto; border-radius: 8px;}
-.btn-ghost{background:none; color: var(--accent); text-decoration: underline; font-size: 0.85rem;}
-.btn-settle { background: #334155; color: #f1f5f9; border: 1px dashed var(--muted); }
-.modal{position:fixed;inset:0;background:rgba(0,0,0,0.95);display:none;align-items:center;justify-content:center;z-index:1000;padding:15px;backdrop-filter:blur(10px);}
-.modal-inner{background:#1e293b;border:1px solid var(--border);width:100%;max-width:400px;padding:25px;border-radius:32px;overflow-y:auto;max-height:90vh;}
-label{display:block;font-size:0.7rem;color:var(--muted);margin:12px 0 4px;}
-input,select{width:100%;padding:14px;border-radius:12px;border:1px solid var(--border);background:#020617;color:white;font-size:1rem;margin-bottom:10px;}
-.tx-item{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #1e293b;font-size:0.85rem;}
-.grid{display:grid;gap:16px;}
-@media(min-width:768px){.grid{grid-template-columns:1fr 1fr;}}
-
-.receipt-box { background: #fff; color: #000; padding: 20px; border-radius: 4px; font-family: 'Space Mono', monospace; font-size: 0.75rem; box-shadow: 0 10px 20px rgba(0,0,0,0.4); }
-.receipt-header { border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; text-align: center; }
-.receipt-line { display: flex; justify-content: space-between; margin: 4px 0; }
-.receipt-total { border-top: 1px solid #000; margin-top: 10px; padding-top: 8px; font-weight: 800; font-size: 0.9rem; }
-.fx-live-tag { font-size: 0.7rem; color: var(--accent); font-family: 'Space Mono'; display: block; margin-bottom: 10px; }
-
-.profile-img { width: 60px; height: 60px; background: var(--accent); border-radius: 50%; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
-#qrCode canvas { background: #fff; padding: 10px; border-radius: 12px; border: 4px solid var(--accent); }
-.scan-tag { font-family: 'Space Mono'; color: var(--accent); font-size: 0.7rem; margin-top: 8px; letter-spacing: 2px; }
-.eye-toggle{cursor:pointer;}
-</style>
+    <meta charset="UTF-8">
+    <title>Love in Nairobi - STEAM EDITION</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; }
+        #gui { position: absolute; top: 10px; left: 10px; z-index: 10; pointer-events: none; }
+        .hud { background: rgba(0,0,0,0.8); color: #0f0; padding: 15px; border-left: 5px solid #ff6600; margin-bottom: 10px; pointer-events: auto; }
+        .overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(10,10,10,0.95); color: white; padding: 40px; border: 2px solid #ff6600; text-align: center; z-index: 100; }
+        .btn { background: #ff6600; border: none; color: white; padding: 10px 20px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        #dialogueBox { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); color: white; padding: 20px; border-top: 4px solid #ff6600; width: 50%; display: none; }
+    </style>
 </head>
 <body>
 
-<div id="signupPage" class="page active-page">
-    <div class="auth-container">
-        <h1>LIPA <span style="color:var(--accent)">SME</span></h1>
-        <p class="tagline">Pan-African Settlement Hub 2026</p>
-        <div class="auth-card">
-            <h3>Merchant Onboarding</h3>
-            <label>Business Name</label>
-            <input type="text" id="regName" placeholder="Zuri Fashions Ltd">
-            <label>Settlement Wallet (Till / Phone)</label>
-            <input type="text" id="regWallet" placeholder="e.g. 5442211 or 07xx">
-            <label>Business Email</label>
-            <input type="email" id="regEmail" placeholder="admin@biz.com">
-            <label>Create PIN (4 Digits)</label>
-            <input type="password" id="regPin" maxlength="4" placeholder="****">
-            <button class="btn-primary" onclick="handleSignup()">Link Wallet & Create Account</button>
-            <p style="font-size:0.8rem; color:var(--muted)">Already a merchant? <button class="btn-ghost" onclick="navigateTo('loginPage')">Login</button></p>
-        </div>
+<div id="gui">
+    <div class="hud">
+        <div>PLAYER: <span id="pName">Tileh</span></div>
+        <div>STATUS: <span style="color:cyan">ONLINE</span></div>
+    </div>
+    <div class="hud">
+        <strong>GLOBAL LEADERBOARD</strong>
+        <div id="lb-data" style="font-size: 0.8em;"></div>
     </div>
 </div>
 
-<div id="loginPage" class="page">
-    <div class="auth-container">
-        <h1>LIPA <span style="color:var(--accent)">ACCESS</span></h1>
-        <div class="auth-card">
-            <h3>Merchant Login</h3>
-            <label>Business Email</label>
-            <input type="email" id="loginEmail" placeholder="admin@zuri.africa">
-            <label>Access PIN</label>
-            <input type="password" id="loginPin" maxlength="4" placeholder="****">
-            <button class="btn-primary" onclick="handleLogin()">Unlock Dashboard</button>
-            <button class="btn-ghost" onclick="navigateTo('signupPage')">New Merchant Sign-up</button>
-        </div>
-    </div>
+<div id="customizer" class="overlay">
+    <h2>LOVE IN NAIROBI</h2>
+    <p>Main Character: Tileh (Buff Edition)</p>
+    <input type="text" id="nameInput" placeholder="Enter Nickname..." style="padding: 10px;">
+    <button class="btn" onclick="connectToServer()">START MULTIPLAYER</button>
 </div>
 
-<div id="dashboardPage" class="page">
-    <div class="container">
-        <header style="display:flex; justify-content:space-between; align-items:center; padding: 20px 0;">
-            <div>
-                <h1>LIPA <span style="color:var(--accent)">SME</span></h1>
-                <p class="tagline">Global African Settlement</p>
-            </div>
-            <button class="btn-logout" onclick="logout()">Log Out</button>
-        </header>
+<div id="dialogueBox"></div>
 
-        <div class="card" style="text-align: center; border-bottom: 3px solid var(--accent);">
-            <div class="profile-img">🏢</div>
-            <h2 id="merchantTitle">Loading...</h2>
-            <p style="color:var(--muted); font-size: 0.8rem;" id="walletInfo">Syncing with Daraja...</p>
-            <div id="walletStatus" style="font-size: 0.6rem; color: var(--accent); margin-top: 5px;">● DARAJA LIVE GATEWAY</div>
-        </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
 
-        <div class="card">
-            <div class="card-title">📊 Revenue Dashboard <span>Direct Settlement Analytics</span></div>
-            <div class="analytics-container" id="analysisChart"></div>
-        </div>
-
-        <div class="card">
-            <div class="card-title">💰 Liquid Cash <span class="eye-toggle" onclick="toggleBalances()">👁</span></div>
-            <div class="bal-row">
-                <div class="bal-item">
-                    <label>FIAT (KES)</label>
-                    <div class="bal-val" id="fiatBal">0.00</div>
-                </div>
-                <div class="bal-item">
-                    <label>CRYPTO (USDT)</label>
-                    <div class="bal-sub" id="cryptoBal">0.00</div>
-                </div>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                <button class="btn-swap" onclick="openModal('swapModal')">💱 Swap</button>
-                <button class="btn-withdraw" onclick="openModal('withdrawModal')">🏧 Withdraw</button>
-            </div>
-            <button class="btn-settle" onclick="processEndOfBusiness()">🏁 Close Business Day (15% Vault)</button>
-        </div>
-
-        <div class="card" style="border-color:var(--vault-color);">
-            <div class="card-title" style="color:var(--vault-color)">🔒 Locked Savings <span class="eye-toggle" onclick="toggleVault()">👁</span></div>
-            <div style="text-align:center;padding:10px 0;">
-                <div style="font-size:2.2rem;font-weight:800;color:var(--vault-color);" id="vaultBal">KES 0.00</div>
-                <p style="color:var(--muted);font-size:0.75rem;">Funds protected from daily spending</p>
-            </div>
-            <button class="btn-vault" onclick="openModal('vaultOutModal')">Unlock & Move Funds</button>
-        </div>
-
-        <div class="grid">
-            <div class="card">
-                <div class="card-title">⚡ Point of Sale</div>
-                <label>Amount</label>
-                <input id="termAmt" type="number" value="100">
-                <label>Customer Currency</label>
-                <select id="termCur">
-                    <optgroup label="Global">
-                        <option value="KES">KES (Kenya Shilling)</option>
-                        <option value="USD">USD (US Dollar)</option>
-                        <option value="GBP">GBP (British Pound)</option>
-                        <option value="EUR">EUR (Euro)</option>
-                    </optgroup>
-                    <optgroup label="African Regional">
-                        <option value="NGN">NGN (Nigerian Naira)</option>
-                        <option value="ZAR">ZAR (SA Rand)</option>
-                        <option value="GHS">GHS (Ghana Cedi)</option>
-                        <option value="RWF">RWF (Rwanda Franc)</option>
-                    </optgroup>
-                    <optgroup label="Stablecoins">
-                        <option value="USDT">USDT (Tether)</option>
-                    </optgroup>
-                </select>
-                <span class="fx-live-tag" id="liveFxOutput">Settles as: 100.00 KES</span>
-                <label>Payment Method</label>
-                <select id="termMeth">
-                    <optgroup label="Mobile Wallets">
-                        <option value="M-Pesa">M-Pesa</option>
-                        <option value="Airtel Money">Airtel Money</option>
-                        <option value="T-Cash">T-Cash</option>
-                        <option value="MTN MoMo">MTN MoMo</option>
-                    </optgroup>
-                    <optgroup label="Digital & Card">
-                        <option value="Apple Pay">Apple Pay</option>
-                        <option value="Google Pay">Google Pay</option>
-                        <option value="Visa/Mastercard">Visa/Mastercard</option>
-                    </optgroup>
-                </select>
-                <button class="btn-primary" onclick="initiatePayment()">Generate Payment Link</button>
-            </div>
-
-            <div class="card">
-                <div class="card-title">📋 Direct Ledger <button onclick="exportCSV()" style="width:auto; padding: 4px 10px; font-size: 0.6rem; background: var(--border); margin:0;">Export CSV</button></div>
-                <div id="ledger"></div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="modal" id="payModal">
-    <div class="modal-inner" style="text-align:center;">
-        <h2 id="pTitle" style="color:var(--accent); font-weight:800; font-size:1.8rem;">SECURE GATEWAY</h2>
-        <div id="qrCode" style="margin:20px 0; display: flex; justify-content: center;"></div>
-        <div class="scan-tag">SETTLING TO: <span id="targetWallet"></span></div>
-        <p id="pDesc" style="font-size:1.4rem; font-weight:800; color:var(--text); margin-top:15px;"></p>
-        <button class="btn-primary" onclick="confirmPayment()">Verify & Sync Ledger</button>
-        <button class="btn-secondary" style="margin-top:10px;background:none;color:white;" onclick="closeModals()">Cancel</button>
-    </div>
-</div>
-
-<div class="modal" id="swapModal">
-    <div class="modal-inner">
-        <h2>💱 Currency Swap</h2>
-        <label>Direction</label>
-        <select id="swapDir"><option value="K2C">KES → USDT</option><option value="C2K">USDT → KES</option></select>
-        <label>Amount</label>
-        <input id="swapAmt" type="number" placeholder="0.00">
-        <button class="btn-primary" onclick="executeSwap()">Execute Swap</button>
-        <button class="btn-secondary" style="background:none;color:white;" onclick="closeModals()">Cancel</button>
-    </div>
-</div>
-
-<div class="modal" id="withdrawModal">
-    <div class="modal-inner">
-        <h2>🏧 Withdrawal</h2>
-        <label>Account / Wallet Number</label>
-        <input id="wdAccount" type="text" placeholder="e.g. 0712345678">
-        <label>Amount (KES)</label>
-        <input id="wdAmt" type="number" placeholder="0.00">
-        <label>Confirm PIN</label>
-        <input id="wdPin" type="password" maxlength="4" placeholder="****">
-        <button class="btn-primary" onclick="executeWithdrawal()">Process Withdrawal</button>
-        <button class="btn-secondary" style="background:none;color:white;" onclick="closeModals()">Cancel</button>
-    </div>
-</div>
-
-<div class="modal" id="vaultOutModal">
-    <div class="modal-inner">
-        <h2 style="color:var(--vault-color)">Unlock Vault</h2>
-        <label>Amount (KES)</label>
-        <input id="vMoveAmt" type="number" placeholder="0.00">
-        <label>Security PIN</label>
-        <input id="vPin" type="password" maxlength="4" placeholder="****">
-        <button class="btn-vault" onclick="executeVaultUnlock()">Unlock & Transfer</button>
-        <button class="btn-secondary" style="background:none;color:white;" onclick="closeModals()">Cancel</button>
-    </div>
-</div>
-
-<div class="modal" id="receiptModal">
-    <div class="modal-inner">
-        <div class="receipt-box" id="receiptContent"></div>
-        <button class="btn-primary" style="margin-top:20px;" onclick="closeModals()">Print & Close</button>
-    </div>
-</div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
 <script>
-const BASE_URL = ""; 
+let socket, scene, camera, renderer, player, city;
+let otherPlayers = {};
+let moveKeys = { w: false, a: false, s: false, d: false };
 
-const FX = { KES:1, USD:132.5, USDT:132.5, GBP:168.0, EUR:142.0, NGN:0.08, ZAR:7.1, GHS:10.5, RWF:0.11 };
-let state = {
-    user: null, fiat: 25000, cryptoUSDT: 50, vault: 80000, tx: [],
-    volData: { KES: 12000, USD: 8500, USDT: 4200, EUR: 3100, NGN: 1500, ZAR: 2200 }
-};
+// Provided Image Asset
+const playerImg = "data:image/png;base64,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q//v/zH/N//I8/4//7X57795fv4Of8//R7P8X98H4Hfj79r3+f5+fz5/9OAn4W/x8Cvv9f//X8D7wA8L+X/5P8vRHe/MvPzv/w/A9wI/7wZf/58//f94v9/f9zvw++X//H5X/wG//737/fB/Av9/m7+7//vffz/8vRHe/H8Pf/fP+/87/N//97+7/+XfO+D/5O++5n+5X3j+f/mdf8f9HfhZv8N/7X45+e5O/m5D5Dfhf/v9wffn+/P//V05+b6m79G/G//796/vC4De708A+Hnw907y7+f/+r3B/y7w5wN/9/H7eF//G//uI9/zBPX9V/p7T4b3W7z/K/xN/H+N+w4/u+P36Gfe3/e7458Fv7f//5//+t8E8pM9C//3f9/nOf938TveL74XP1+4X/8f9H/X9f8z8Xfy//t/9/3B5y/p8/K/IuD7+n/v/b7Xfj+v4D/X6i/X2B/X/65/D8/n99Bv8vP63+n/3uXf9/8/v5//O+A//v4/d5u+54L/A4P771L/X9Y/+f4G/+f87/9zW/+O+Bf4v/8H//P+A/+z8/G/+H//YwP49/+jP+v91f8X9X+3v+zX/K//J9//G/v//5//+/+n/9//z//v8=";
 
-let activeTx = null, balancesVisible = true, vaultVisible = true;
+function connectToServer() {
+    const name = document.getElementById('nameInput').value || "Tileh";
+    document.getElementById('pName').innerText = name;
+    document.getElementById('customizer').style.display = 'none';
 
-async function handleSignup() {
-    const name = document.getElementById('regName').value;
-    const wallet = document.getElementById('regWallet').value;
-    const email = document.getElementById('regEmail').value;
-    const pin = document.getElementById('regPin').value;
-    if(!name || !email || !pin) return alert("All fields required");
-    try {
-        const res = await fetch(`${BASE_URL}/api/signup`, {
-            method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ name, wallet, email, pin })
+    socket = io();
+    socket.emit('join', { name: name, color: 0xffffff });
+
+    init3D();
+    setupNetworkListeners();
+}
+
+function init3D() {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x020205);
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // City Map
+    createNairobi();
+
+    // Local Player Sprite
+    const loader = new THREE.TextureLoader();
+    const texture = loader.load(playerImg);
+    const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+    player = new THREE.Sprite(material);
+    player.scale.set(4, 4, 1);
+    player.position.y = 2;
+    scene.add(player);
+
+    camera.position.set(0, 10, 15);
+    animate();
+}
+
+function createNairobi() {
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshBasicMaterial({color: 0x111111}));
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+
+    for(let i=0; i<50; i++) {
+        const h = 5 + Math.random()*20;
+        const b = new THREE.Mesh(new THREE.BoxGeometry(4, h, 4), new THREE.MeshBasicMaterial({color: 0x333333}));
+        b.position.set(Math.random()*200-100, h/2, Math.random()*200-100);
+        scene.add(b);
+    }
+}
+
+function setupNetworkListeners() {
+    socket.on('currentPlayers', (players) => {
+        Object.keys(players).forEach((id) => {
+            if (id !== socket.id) addOtherPlayer(players[id]);
         });
-        const data = await res.json();
-        if (data.success) { alert('✅ Merchant Profile Created!'); navigateTo('loginPage'); }
-        else alert(data.error);
-    } catch (err) { alert('Server connection failed.'); }
-}
-
-async function handleLogin() {
-    const email = document.getElementById('loginEmail').value;
-    const pin = document.getElementById('loginPin').value;
-    try {
-        const res = await fetch(`${BASE_URL}/api/login`, {
-            method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ email, pin })
-        });
-        const data = await res.json();
-        if (data.success) { state.user = data.merchant; navigateTo('dashboardPage'); }
-        else alert(data.error);
-    } catch (err) { alert('Authentication server offline.'); }
-}
-
-async function confirmPayment() {
-    if (!activeTx) return;
-    try {
-        const res = await fetch(`${BASE_URL}/api/payment`, {
-            method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({
-                email: state.user.email, wallet: state.user.wallet,
-                amount: activeTx.amt, method: activeTx.meth
-            })
-        });
-        const result = await res.json();
-        if(!result.success) throw new Error("Sync failed");
-        if(activeTx.cur === "USDT") state.cryptoUSDT += activeTx.amt;
-        else state.fiat += activeTx.localAmt;
-        state.volData[activeTx.cur] = (state.volData[activeTx.cur] || 0) + activeTx.localAmt;
-        state.tx.unshift({type: activeTx.meth, time: new Date().toLocaleTimeString(), localAmt: activeTx.localAmt, flow: 'IN'});
-        closeModals(); updateUI();
-        popReceipt({type: activeTx.meth, inputAmt: activeTx.amt, cur: activeTx.cur, localAmt: activeTx.localAmt});
-    } catch(err) { alert('Transaction sync failed.'); }
-}
-
-function exportCSV() {
-    if(state.tx.length === 0) return alert("No data");
-    let csv = "Time,Method,Amount,Flow\n";
-    state.tx.forEach(t => csv += `${t.time},${t.type},${t.localAmt},${t.flow}\n`);
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'lipa_ledger.csv'; a.click();
-}
-
-function runLiveFx() {
-    const val = parseFloat(document.getElementById('termAmt').value) || 0;
-    const cur = document.getElementById('termCur').value;
-    document.getElementById('liveFxOutput').innerText = `Settles as: ${(val * FX[cur]).toLocaleString()} KES`;
-}
-
-function popReceipt(data) {
-    const html = `<div class="receipt-header"><h2>LIPA SME</h2></div><div class="receipt-line"><span>DATE:</span> <span>${new Date().toLocaleString()}</span></div><div class="receipt-line"><span>METHOD:</span> <span>${data.type}</span></div><div class="receipt-total"><span>SETTLED:</span> <span>${data.localAmt.toLocaleString()} KES</span></div>`;
-    document.getElementById('receiptContent').innerHTML = html;
-    openModal('receiptModal');
-}
-
-function updateUI() {
-    if(!state.user) return;
-    document.getElementById('merchantTitle').innerText = state.user.name;
-    document.getElementById('walletInfo').innerText = `Route: ${state.user.wallet}`;
-    document.getElementById('fiatBal').innerText = balancesVisible ? state.fiat.toLocaleString() : "****";
-    document.getElementById('cryptoBal').innerText = balancesVisible ? state.cryptoUSDT.toFixed(2) + " USDT" : "****";
-    document.getElementById('vaultBal').innerText = vaultVisible ? ("KES " + state.vault.toLocaleString()) : "****";
-    const chart = document.getElementById('analysisChart'); chart.innerHTML = '';
-    const maxVal = Math.max(...Object.values(state.volData), 1000);
-    ['KES', 'USD', 'USDT', 'EUR', 'NGN', 'ZAR'].forEach(cur => {
-        const h = ((state.volData[cur] || 0) / maxVal) * 100;
-        chart.innerHTML += `<div class="bar-wrap"><div class="bar" style="height:${h}%"></div><span class="bar-label">${cur}</span></div>`;
     });
-    document.getElementById('ledger').innerHTML = state.tx.slice(0,5).map(t => `<div class="tx-item"><div><strong>${t.type}</strong></div><div style="color:${t.flow==='IN'?'var(--accent)':'var(--danger)'}">${t.flow==='IN'?'+':'-'}${t.localAmt.toLocaleString()}</div></div>`).join('') || '<p>No transactions</p>';
+
+    socket.on('newPlayer', (playerInfo) => addOtherPlayer(playerInfo));
+
+    socket.on('playerMoved', (playerInfo) => {
+        if (otherPlayers[playerInfo.id]) {
+            otherPlayers[playerInfo.id].position.set(playerInfo.x, 2, playerInfo.z);
+        }
+    });
+
+    socket.on('updateLeaderboard', (data) => {
+        const lb = document.getElementById('lb-data');
+        lb.innerHTML = data.map(u => `<div>${u.name}: ${u.score}</div>`).join('');
+    });
 }
 
-function executeSwap() {
-    const dir = document.getElementById('swapDir').value;
-    const amt = parseFloat(document.getElementById('swapAmt').value);
-    if(!amt || amt <= 0) return alert("Invalid amount");
-    if(dir === "K2C" && state.fiat < amt) return alert("Low balance");
-    if(dir === "K2C") { state.fiat -= amt; state.cryptoUSDT += (amt / FX.USDT); }
-    else { state.cryptoUSDT -= amt; state.fiat += (amt * FX.USDT); }
-    closeModals(); updateUI();
+function addOtherPlayer(info) {
+    const loader = new THREE.TextureLoader();
+    const texture = loader.load(playerImg);
+    const material = new THREE.SpriteMaterial({ map: texture, transparent: true, opacity: 0.7 });
+    const p = new THREE.Sprite(material);
+    p.scale.set(4, 4, 1);
+    p.position.set(info.x, 2, info.z);
+    otherPlayers[info.id] = p;
+    scene.add(p);
 }
 
-function executeWithdrawal() {
-    const amt = parseFloat(document.getElementById('wdAmt').value);
-    if(document.getElementById('wdPin').value !== state.user.pin) return alert("Wrong PIN");
-    state.fiat -= amt; closeModals(); updateUI();
+function animate() {
+    requestAnimationFrame(animate);
+
+    const speed = 0.3;
+    if (moveKeys.w) player.position.z -= speed;
+    if (moveKeys.s) player.position.z += speed;
+    if (moveKeys.a) player.position.x -= speed;
+    if (moveKeys.d) player.position.x += speed;
+
+    if (socket && (moveKeys.w || moveKeys.s || moveKeys.a || moveKeys.d)) {
+        socket.emit('playerMovement', { x: player.position.x, z: player.position.z });
+    }
+
+    camera.position.lerp(new THREE.Vector3(player.position.x, 8, player.position.z + 12), 0.1);
+    camera.lookAt(player.position);
+    renderer.render(scene, camera);
 }
 
-function executeVaultUnlock() {
-    const amt = parseFloat(document.getElementById('vMoveAmt').value);
-    if(document.getElementById('vPin').value !== state.user.pin) return alert("Wrong PIN");
-    state.vault -= amt; state.fiat += amt; closeModals(); updateUI();
-}
-
-function processEndOfBusiness() {
-    const saveAmt = state.fiat * 0.15;
-    state.fiat -= saveAmt; state.vault += saveAmt; updateUI();
-}
-
-function initiatePayment() {
-    const amt = parseFloat(document.getElementById('termAmt').value);
-    const cur = document.getElementById('termCur').value;
-    activeTx = { ref: "L-"+Math.random().toString(36).substr(2,5).toUpperCase(), amt, cur, meth: document.getElementById('termMeth').value, localAmt: (amt * FX[cur]), target: state.user.wallet };
-    document.getElementById('pDesc').innerText = `PAY: ${amt} ${cur}`;
-    document.getElementById('targetWallet').innerText = activeTx.target;
-    document.getElementById('qrCode').innerHTML = '';
-    const q = new QRious({ element: document.createElement('canvas'), value: activeTx.ref, size: 200 });
-    document.getElementById('qrCode').appendChild(q.image);
-    openModal('payModal');
-}
-
-document.getElementById('termAmt').addEventListener('input', runLiveFx);
-document.getElementById('termCur').addEventListener('change', runLiveFx);
-function navigateTo(p) { document.querySelectorAll('.page').forEach(x => x.classList.remove('active-page')); document.getElementById(p).classList.add('active-page'); if(state.user) updateUI(); }
-function logout() { state.user = null; navigateTo('loginPage'); }
-function openModal(id) { document.getElementById(id).style.display = 'flex'; }
-function closeModals() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
-function toggleBalances() { balancesVisible = !balancesVisible; updateUI(); }
-function toggleVault() { vaultVisible = !vaultVisible; updateUI(); }
+document.addEventListener('keydown', (e) => { if(moveKeys.hasOwnProperty(e.key.toLowerCase())) moveKeys[e.key.toLowerCase()] = true; });
+document.addEventListener('keyup', (e) => { if(moveKeys.hasOwnProperty(e.key.toLowerCase())) moveKeys[e.key.toLowerCase()] = false; });
 </script>
 </body>
 </html>
