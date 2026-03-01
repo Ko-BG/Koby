@@ -468,6 +468,104 @@ function checkEndings(){
 setInterval(checkEndings, 3000);
 
 // ──────────────────────────────────────────────
+// 🔧 INITIALIZATION & NETWORKING (THE "ADDABLES")
+// ──────────────────────────────────────────────
+
+function connectToServer() {
+    const name = document.getElementById('nameInput').value || "Tileh";
+    document.getElementById('pName').innerText = name;
+    document.getElementById('customizer').style.display = 'none';
+    document.getElementById('chat-container').style.display = 'flex';
+    document.getElementById('mission-card').style.display = 'block';
+
+    // Start 3D World
+    initWorld();
+    
+    // Start Network
+    socket = io();
+
+    socket.emit('joinGame', name);
+
+    socket.on('currentPlayers', (players) => {
+        Object.keys(players).forEach((id) => {
+            if (id !== socket.id) addOtherPlayer(players[id]);
+        });
+    });
+
+    socket.on('newPlayer', (pInfo) => {
+        addOtherPlayer(pInfo);
+    });
+
+    socket.on('playerMoved', (pInfo) => {
+        if (otherPlayers[pInfo.id]) {
+            otherPlayers[pInfo.id].position.set(pInfo.x, 1, pInfo.z);
+        }
+    });
+
+    socket.on('playerDisconnected', (id) => {
+        if (otherPlayers[id]) {
+            scene.remove(otherPlayers[id]);
+            delete otherPlayers[id];
+        }
+    });
+
+    socket.on('newMessage', (data) => {
+        const msg = document.createElement('div');
+        msg.className = `chat-msg ${data.user === name ? 'own' : ''}`;
+        msg.innerHTML = `<span class="chat-time">${data.time}</span><span class="chat-user">${data.user}:</span> ${data.text}`;
+        chatLogs.appendChild(msg);
+        chatLogs.scrollTop = chatLogs.scrollHeight;
+    });
+
+    animate();
+}
+
+function initWorld() {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0a0f);
+    scene.fog = new THREE.FogExp2(0x0a0a0f, 0.015);
+
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Grid Floor for Nairobi Streets
+    const grid = new THREE.GridHelper(500, 50, 0xff6600, 0x222233);
+    scene.add(grid);
+
+    // Player Avatar (Neon Cube)
+    player = new THREE.Mesh(
+        new THREE.BoxGeometry(2, 2, 2),
+        new THREE.MeshStandardMaterial({ color: 0x00f0ff, emissive: 0x00f0ff, emissiveIntensity: 0.5 })
+    );
+    player.position.y = 1;
+    scene.add(player);
+
+    const light = new THREE.PointLight(0xff6600, 2, 50);
+    player.add(light);
+    scene.add(new THREE.AmbientLight(0x404040));
+}
+
+function addOtherPlayer(p) {
+    const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(2, 2, 2),
+        new THREE.MeshBasicMaterial({ color: p.color || 0xff00ff, wireframe: true })
+    );
+    mesh.position.set(p.x, 1, p.z);
+    otherPlayers[p.id] = mesh;
+    scene.add(mesh);
+}
+
+chatInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && chatInput.value.trim() !== "") {
+        socket.emit('chatMessage', chatInput.value);
+        chatInput.value = "";
+    }
+});
+
+// ──────────────────────────────────────────────
 // ORIGINAL NETWORK + 3D SYSTEM (UNCHANGED)
 // ──────────────────────────────────────────────
 
@@ -476,12 +574,13 @@ function animate() {
 
     if (document.activeElement !== chatInput) {
         const speed = 0.3;
-        if (moveKeys.w) player.position.z -= speed;
-        if (moveKeys.s) player.position.z += speed;
-        if (moveKeys.a) player.position.x -= speed;
-        if (moveKeys.d) player.position.x += speed;
+        let moved = false;
+        if (moveKeys.w) { player.position.z -= speed; moved = true; }
+        if (moveKeys.s) { player.position.z += speed; moved = true; }
+        if (moveKeys.a) { player.position.x -= speed; moved = true; }
+        if (moveKeys.d) { player.position.x += speed; moved = true; }
 
-        if (socket && (moveKeys.w || moveKeys.s || moveKeys.a || moveKeys.d)) {
+        if (socket && moved) {
             socket.emit('playerMovement', { x: player.position.x, z: player.position.z });
         }
     }
