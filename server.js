@@ -5,99 +5,72 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-    cors: { origin: "*" } // Allows connections from different ports during dev
-});
+const io = new Server(server);
 
-// --- GAME DATABASE ---
-const state = {
-    players: {},
-    leaderboard: [
-        { name: "Tileh", score: 9999 },
-        { name: "NairobiRay", score: 8500 }
-    ]
-};
+const PORT = process.env.PORT || 3000;
 
-/** * UPDATED FOR ROOT STRUCTURE 
- * Tells Express to serve files directly from the root directory 
- */
+// Serve static files (your index.html)
 app.use(express.static(__dirname));
 
-// Explicitly serve index.html when the root URL is accessed
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
+// Store player data
+const players = {};
 
-// --- SOCKET LOGIC ---
 io.on('connection', (socket) => {
-    console.log(`NEW CONNECTION: ${socket.id}`);
+    console.log(`[SYSTEM] Warrior connected: ${socket.id}`);
 
-    // 1. JOINING THE GAME
-    socket.on('join', (data) => {
-        state.players[socket.id] = {
+    // Handle New Player Join
+    socket.on('joinGame', (username) => {
+        players[socket.id] = {
             id: socket.id,
-            name: data.name || "Nairobi Legend",
-            x: Math.random() * 10,
-            z: Math.random() * 10,
-            color: data.color || 0xffffff,
-            lastSeen: Date.now()
+            name: username || 'Unknown Warrior',
+            x: 0,
+            z: 0,
+            color: '#' + Math.floor(Math.random()*16777215).toString(16) // Random neon color
         };
 
-        socket.emit('currentPlayers', state.players);
-        socket.emit('updateLeaderboard', state.leaderboard);
-        socket.broadcast.emit('newPlayer', state.players[socket.id]);
+        // Tell the new player about existing players
+        socket.emit('currentPlayers', players);
+
+        // Tell others a new warrior has entered Nairobi
+        socket.broadcast.emit('newPlayer', players[socket.id]);
+        
+        console.log(`${players[socket.id].name} has entered the chase.`);
     });
 
-    // 2. MOVEMENT SYNC
+    // Handle Movement
     socket.on('playerMovement', (movementData) => {
-        if (state.players[socket.id]) {
-            state.players[socket.id].x = movementData.x;
-            state.players[socket.id].z = movementData.z;
-            state.players[socket.id].lastSeen = Date.now();
-            socket.broadcast.emit('playerMoved', state.players[socket.id]);
+        if (players[socket.id]) {
+            players[socket.id].x = movementData.x;
+            players[socket.id].z = movementData.z;
+            // Broadcast to everyone else
+            socket.broadcast.emit('playerMoved', players[socket.id]);
         }
     });
 
-    // 3. CHAT SYSTEM
+    // Handle Chat
     socket.on('chatMessage', (msg) => {
-        if (state.players[socket.id]) {
-            const chatData = {
-                name: state.players[socket.id].name,
+        if (players[socket.id]) {
+            io.emit('newMessage', {
+                user: players[socket.id].name,
                 text: msg,
                 time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            };
-            io.emit('newMessage', chatData); 
-            console.log(`[CHAT] ${chatData.name}: ${msg}`);
+            });
         }
     });
 
-    // 4. DISCONNECTION
+    // Handle Disconnect
     socket.on('disconnect', () => {
-        console.log(`PLAYER LEFT: ${socket.id}`);
-        delete state.players[socket.id];
+        console.log(`[SYSTEM] Warrior disconnected: ${socket.id}`);
+        delete players[socket.id];
         io.emit('playerDisconnected', socket.id);
     });
 });
 
-// --- SERVER HEARTBEAT ---
-setInterval(() => {
-    const now = Date.now();
-    for (let id in state.players) {
-        if (now - state.players[id].lastSeen > 10000) {
-            delete state.players[id];
-            io.emit('playerDisconnected', id);
-        }
-    }
-}, 5000);
-
-// --- CLOUD READY LISTENER ---
-const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`
-    ====================================
-    NAIROBI MASTER SERVER ONLINE
-    ROOT DIRECTORY MODE ACTIVE
-    Port: ${PORT}
-    ====================================
+    🚀 NAIROBI LOVE CHASE: STEAM EDITION
+    ------------------------------------
+    Server running at: http://localhost:${PORT}
+    Status: MOTOR_COMBAT_READY
     `);
 });
