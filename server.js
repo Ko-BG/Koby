@@ -7,7 +7,13 @@ import multer from "multer";
 import pdf from "pdf-parse";
 import fs from "fs";
 import http from "http";
+import path from "path";
+import { fileURLToPath } from "url";
 import { Server } from "socket.io";
+
+// Fix for __dirname in ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = http.createServer(app);
@@ -18,20 +24,33 @@ const io = new Server(server, {
 // =========================
 // CONFIG
 // =========================
-const JWT_SECRET = "adak_secret_key";
-const MONGO_URI = "mongodb://localhost:27017/adak";
+// Use process.env for Render deployment security
+const JWT_SECRET = process.env.JWT_SECRET || "adak_secret_key";
+const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/adak";
+const PORT = process.env.PORT || 3000;
 
 // =========================
 // MIDDLEWARE
 // =========================
 app.use(cors());
 app.use(express.json());
-app.use("/uploads", express.static("uploads"));
+
+// 1. Serve static files from the root directory so it finds index.html
+app.use(express.static(__dirname)); 
+// 2. Explicitly serve the uploads folder
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+// Ensure uploads directory exists on start
+if (!fs.existsSync("./uploads")) {
+  fs.mkdirSync("./uploads");
+}
 
 // =========================
 // DB
 // =========================
-mongoose.connect(MONGO_URI);
+mongoose.connect(MONGO_URI)
+  .then(() => console.log("Connected to MongoDB"))
+  .catch(err => console.error("Could not connect to MongoDB:", err));
 
 // =========================
 // SOCKET.IO GLOBAL
@@ -94,6 +113,14 @@ const storage = multer.diskStorage({
   }
 });
 const upload = multer({ storage });
+
+// =========================
+// FRONTEND ROUTE
+// =========================
+// Explicitly serve index.html when hitting the base URL
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
+});
 
 // =========================
 // AUTH
@@ -175,10 +202,12 @@ app.get("/search", auth, async (req, res) => {
 app.get("/risk/:dept", auth, async (req, res) => {
   const docs = await Document.find({ department: req.params.dept });
 
-  const avg = docs.reduce((a, b) => a + (b.score || 0), 0) / (docs.length || 1);
+  const avg = docs.length > 0 
+    ? docs.reduce((a, b) => a + (b.score || 0), 0) / docs.length 
+    : 0;
 
   res.json({
-    score: avg,
+    score: avg.toFixed(2),
     level: avg > 70 ? "HIGH" : avg > 40 ? "MEDIUM" : "LOW"
   });
 });
@@ -199,24 +228,29 @@ app.post("/analyze/:id", auth, async (req, res) => {
 });
 
 // =========================
-// ✍️ SIGN (FIXED TO MATCH FRONTEND)
+// ✍️ SIGN
 // =========================
 app.post("/sign", auth, async (req, res) => {
-  const doc = await Document.findById(req.body.documentId);
+  // Logic updated to find the most recent document for the user if ID isn't provided
+  const query = req.body.documentId 
+    ? { _id: req.body.documentId } 
+    : { uploadedBy: req.user.email, department: req.body.department };
 
-  if (!doc) return res.status(404).json({ message: "Not found" });
+  const doc = await Document.findOne(query).sort({ _id: -1 });
 
-  doc.signature = req.body.hash; // FIXED MATCH WITH FRONTEND
+  if (!doc) return res.status(404).json({ message: "Document not found" });
+
+  doc.signature = req.body.hash; 
   await doc.save();
 
-  res.json({ message: "Signed" });
+  res.json({ message: "Signed", hash: req.body.hash });
 });
 
 // =========================
-// 📜 LEDGER (FIXED MISSING ENDPOINT)
+// 📜 LEDGER
 // =========================
 app.get("/ledger", auth, async (req, res) => {
-  const logs = await Audit.find().sort({ timestamp: 1 });
+  const logs = await Audit.find().sort({ timestamp: -1 }).limit(50);
   res.json(logs);
 });
 
@@ -224,12 +258,12 @@ app.get("/ledger", auth, async (req, res) => {
 // SOCKET CONNECT
 // =========================
 io.on("connection", (socket) => {
-  console.log("Client connected");
+  console.log("Client connected:", socket.id);
 });
 
 // =========================
 // START
 // =========================
-server.listen(3000, () => {
-  console.log("ADAK server running on http://localhost:3000");
+server.listen(PORT, () => {
+  console.log(`ADAK server running on port ${PORT}`);
 });
