@@ -44,7 +44,7 @@ h2 { margin: 0; text-transform: uppercase; letter-spacing: 3px; font-weight: 800
 
 .main-layout {
   display: grid;
-  grid-template-columns: 300px 1fr 350px;
+  grid-template-columns: 350px 1fr 350px;
   gap: 20px;
   padding: 20px;
   height: calc(100vh - 100px);
@@ -164,6 +164,9 @@ button {
     animation: slideIn 0.5s ease;
 }
 
+#requirements li { cursor: pointer; transition: 0.2s; }
+#requirements li:hover { background: rgba(0, 243, 255, 0.1) !important; }
+
 @keyframes slideIn { from { opacity: 0; transform: translateX(50px); } to { opacity: 1; transform: translateX(0); } }
 </style>
 </head>
@@ -206,7 +209,8 @@ button {
 
 <div class="main-layout">
   <div class="card">
-    <h3>📋 Unit Requirements</h3>
+    <h3>📋 WADA Recommendations</h3>
+    <p style="font-size: 0.65rem; color: #888; margin-bottom: 10px;">Tap requirement to initiate compliance upload.</p>
     <ul id="requirements"></ul>
     
     <div style="margin-top:30px">
@@ -262,13 +266,41 @@ const socket = io();
 let currentUser = "";
 let currentDept = "Testing";
 let uploadedDocs = [];
+let activeRequirement = null;
 
+[span_2](start_span)// WADA 2024-25 BEST PRACTICE MAPPING[span_2](end_span)
 const requirementsMap = {
-  Testing: ["Sample Inventory","Lab Records","ABP Staff","Whereabouts Logs"],
-  Investigation: ["Whistleblower Policy","Investigation Reports"],
-  Results: ["RM SOP","Case Tracker","B Sample Logs"],
-  Education: ["Training Plan","Educator Logs"],
-  DataProtection: ["Incident Response Plan","Privacy Policy"]
+  Testing: [
+    "Sample Retention Inventory", 
+    "ABP Scientific Staff Recruitment", 
+    "Whereabouts Failure SOP", 
+    "Digital Stock Monitoring", 
+    "Sample Retention Strategy"
+  ],
+  Investigation: [
+    "Whistleblower Policy Publication", 
+    "I&I Policy Update", 
+    "Target Testing Intelligence Log", 
+    "Whistleblower Procedures"
+  ],
+  Results: [
+    "RM Consistency Policy", 
+    "APF/ABP Review Policy", 
+    "Whereabouts Procedure Draft", 
+    "B Sample Delay Protocol", 
+    "CAS Training Records"
+  ],
+  Education: [
+    "Annual Activity Calendar", 
+    "Knowledge Questionnaire Review", 
+    "Grant Expense Records", 
+    "Educators' Manual Update"
+  ],
+  DataProtection: [
+    "Incident Response Plan", 
+    "Privacy Policy TUE Integration", 
+    "Data Breach Templates"
+  ]
 };
 
 // 1. INITIALIZE INTERFACE
@@ -301,11 +333,18 @@ function loadRequirements() {
         li.style.background = "rgba(255,255,255,0.02)";
         li.style.marginBottom = "5px";
         li.innerHTML = (isDone ? "✅ " : "⚡ ") + r;
+        
+        // Link tab functionality to upload
+        li.onclick = () => {
+          activeRequirement = r;
+          document.getElementById('fileInput').click();
+        };
+        
         ul.appendChild(li);
     });
 }
 
-// 2. AUTHENTICATION (CORRECTED REFERENCES)
+// 2. AUTHENTICATION
 async function signup() {
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
@@ -379,15 +418,21 @@ async function processUpload(file) {
     fd.append("document", file);
     fd.append("department", currentDept);
     fd.append("user", currentUser);
+    fd.append("requirement", activeRequirement || "General");
 
     try {
         const res = await fetch("/upload", { method: "POST", body: fd });
         const doc = await res.json();
-        uploadedDocs.push(file.name);
+        
+        // Mark as uploaded if it matches a recommendation
+        if(activeRequirement) uploadedDocs.push(activeRequirement);
+        else uploadedDocs.push(file.name);
+
         loadRequirements();
         loadPDF(file);
         loadRisk();
         loadLedger();
+        activeRequirement = null; // reset
     } catch(e) {
         alert("Upload failed.");
     }
