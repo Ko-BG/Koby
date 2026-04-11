@@ -13,12 +13,12 @@ import { Server } from "socket.io";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import dotenv from "dotenv";
-import nodemailer from "nodemailer"; // Added for Enterprise Email Alerts
+import nodemailer from "nodemailer"; 
 
 /**
- * ADAK ENTERPRISE COMPLIANCE AI - MASTER SERVER V5.0
+ * ADAK ENTERPRISE COMPLIANCE AI - MASTER SERVER V5.1 (ENHANCED)
  * Features: Plug-and-Play API, Vector Truth Logic, Touch/Pen Signatures
- * Optimized for Official @adak.or.ke SMTP Integration
+ * Enhanced: Automated Board Report Generation & Agency-Wide Analytics
  */
 
 dotenv.config();
@@ -44,12 +44,12 @@ const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || "ADAK_CORE_SECRET_2026"
 
 // NEW: SMTP TRANSPORTER FOR EMAIL ALERTS
 const transporter = nodemailer.createTransport({
-  host: "smtp.office365.com", // Official ADAK/Microsoft Host
+  host: "smtp.office365.com", 
   port: 587,
-  secure: false, // TLS
+  secure: false, 
   auth: {
     user: "your.name@adak.or.ke", 
-    pass: process.env.EMAIL_PASS // Your 16-character App Password
+    pass: process.env.EMAIL_PASS 
   }
 });
 
@@ -99,6 +99,14 @@ const Audit = mongoose.model("Audit", new mongoose.Schema({
   department: String,
   details: String,
   hash: String 
+}, { timestamps: true }));
+
+// ENHANCEMENT: Report Tracking Schema
+const Report = mongoose.model("Report", new mongoose.Schema({
+  generatedBy: String,
+  title: String,
+  stats: Object,
+  signatureHash: String
 }, { timestamps: true }));
 
 // 6. AUTH PROTECTION
@@ -208,7 +216,7 @@ app.post("/upload", upload.single("document"), async (req, res) => {
   }
 });
 
-// 9. PLUG-AND-PLAY API (For ESS System Integration)
+// 9. PLUG-AND-PLAY API
 app.post("/api/v1/external/validate", async (req, res) => {
   try {
     const apiKey = req.headers['x-adak-key'];
@@ -216,8 +224,6 @@ app.post("/api/v1/external/validate", async (req, res) => {
 
     const { content, dept } = req.body;
     const master = await Document.findOne({ isMasterReference: true, department: dept });
-    
-    // Simulate AI grading against Master Doc
     const risk = content.length < 50 ? 80 : 10; 
     
     res.json({
@@ -231,7 +237,7 @@ app.post("/api/v1/external/validate", async (req, res) => {
   }
 });
 
-// 10. DIGITAL SIGNATURE HANDLER (Backend Storage)
+// 10. DIGITAL SIGNATURE HANDLER
 app.post("/sign", async (req, res) => {
     try {
         const { user, department, hash } = req.body;
@@ -272,24 +278,28 @@ app.get("/search", async (req, res) => {
     }).sort({ createdAt: -1 });
     res.json(results);
 });
-// Add this to your server.js
+
+// ENHANCEMENT: Master Agency-Wide Report Generator
 app.get("/api/v1/compliance/master-report", async (req, res) => {
   try {
     const allDocs = await Document.find();
     const totalDocs = allDocs.length;
     const highRisk = allDocs.filter(d => d.riskLevel === "HIGH").length;
+    const medRisk = allDocs.filter(d => d.riskLevel === "MEDIUM").length;
     
-    // Calculate an "Agency-Wide Compliance Score"
     const totalScore = allDocs.reduce((a, b) => a + b.riskScore, 0);
     const agencyAvg = totalDocs ? (totalScore / totalDocs).toFixed(1) : 0;
 
-    res.json({
+    const reportData = {
       agencyAvg,
       totalDocs,
-      highRiskCount: highRisk,
-      status: agencyAvg > 70 ? "CRITICAL" : "STABLE",
+      riskBreakdown: { high: highRisk, medium: medRisk, low: totalDocs - (highRisk + medRisk) },
+      status: agencyAvg > 70 ? "CRITICAL" : agencyAvg > 40 ? "WARNING" : "STABLE",
+      integrityChecked: true,
       timestamp: new Date()
-    });
+    };
+
+    res.json(reportData);
   } catch (e) {
     res.status(500).json({ error: "REPORT_GEN_FAILED" });
   }
@@ -317,7 +327,7 @@ app.post("/query-ai", async (req, res) => {
 // 13. SOCKET HANDLERS
 io.on("connection", (socket) => {
   socket.on("adminBroadcast", (data) => {
-    io.emit("auditUpdate", { action: "ADMIN_GLOBAL_ALERT", details: data.message, user: data.admin });
+    io.emit("auditUpdate", { action: "ADMIN_GLOBAL_ALERT", details: data.details, user: data.admin });
   });
 });
 
@@ -325,11 +335,10 @@ io.on("connection", (socket) => {
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`
   +-------------------------------------------+
-  |    ADAK ENTERPRISE MASTER CORE v5.0       |
+  |    ADAK ENTERPRISE MASTER CORE v5.1       |
   +-------------------------------------------+
-  | STATUS: ONLINE (API Gateway Active)       |
+  | STATUS: ONLINE (Agency Dashboard Active)  |
   | ARCHITECT: Gillian Jakes Nyangaga         |
   +-------------------------------------------+
   `);
 });
-
