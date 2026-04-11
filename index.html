@@ -2,97 +2,279 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ADAK Enterprise Compliance AI</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 
 <style>
-body { margin:0; font-family:Arial; background:#020617; color:#38bdf8;}
-header { display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid cyan;}
-.tabs { display:flex; gap:10px; padding:10px;}
-.tab { padding:10px; border:1px solid cyan; cursor:pointer;}
-.active { background:cyan; color:black;}
-.container { display:grid; grid-template-columns:1fr 1fr; gap:20px; padding:20px;}
-.card { border:1px solid cyan; padding:15px; border-radius:10px;}
-#dropZone { border:2px dashed cyan; padding:30px; text-align:center;}
-canvas { width:100%; border:1px solid cyan;}
-.low{color:lime;} .medium{color:orange;} .high{color:red;}
-input, select, button { margin:5px; padding:8px;}
+:root {
+  --neon-cyan: #00f3ff;
+  --neon-blue: #0066ff;
+  --bg-dark: #020617;
+  --glass: rgba(15, 23, 42, 0.8);
+  --border-glow: 0 0 10px rgba(0, 243, 255, 0.3);
+}
+
+body { 
+  margin: 0; 
+  font-family: 'Segoe UI', Roboto, sans-serif; 
+  background: var(--bg-dark); 
+  color: #e2e8f0;
+  background-image: 
+    radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%),
+    linear-gradient(rgba(0, 243, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 243, 255, 0.05) 1px, transparent 1px);
+  background-size: 100% 100%, 30px 30px, 30px 30px;
+}
+
+header { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center;
+  padding: 15px 30px; 
+  background: var(--glass);
+  border-bottom: 2px solid var(--neon-cyan);
+  box-shadow: var(--border-glow);
+  backdrop-filter: blur(10px);
+}
+
+h2 { margin: 0; text-transform: uppercase; letter-spacing: 3px; font-weight: 800; color: var(--neon-cyan); text-shadow: 0 0 10px var(--neon-cyan); }
+
+.main-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr 350px;
+  gap: 20px;
+  padding: 20px;
+  height: calc(100vh - 100px);
+}
+
+/* 🔐 AUTH SECTION - MODAL STYLE */
+#authOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.95);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.auth-card {
+  width: 400px;
+  padding: 40px;
+  background: var(--glass);
+  border: 1px solid var(--neon-cyan);
+  border-radius: 20px;
+  box-shadow: 0 0 30px rgba(0, 243, 255, 0.2);
+  text-align: center;
+}
+
+/* 📑 TABS SECTION */
+.tabs-container {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 15px;
+  padding: 0 10px;
+}
+
+.tab { 
+  padding: 12px 25px; 
+  background: rgba(0, 243, 255, 0.05);
+  border: 1px solid rgba(0, 243, 255, 0.3);
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+}
+
+.tab:hover { background: rgba(0, 243, 255, 0.15); border-color: var(--neon-cyan); }
+.tab.active { 
+  background: var(--neon-cyan); 
+  color: #000; 
+  box-shadow: 0 0 15px var(--neon-cyan);
+  border-color: var(--neon-cyan);
+}
+
+/* 🃏 CARDS */
+.card { 
+  background: var(--glass);
+  border: 1px solid rgba(0, 243, 255, 0.2);
+  padding: 20px; 
+  border-radius: 15px;
+  overflow-y: auto;
+  backdrop-filter: blur(5px);
+}
+
+.card h3 { 
+  margin-top: 0; 
+  font-size: 0.9rem; 
+  text-transform: uppercase; 
+  color: var(--neon-cyan);
+  border-left: 3px solid var(--neon-cyan);
+  padding-left: 10px;
+  margin-bottom: 20px;
+}
+
+/* 📤 UPLOAD ZONE */
+#dropZone { 
+  border: 2px dashed var(--neon-cyan); 
+  padding: 40px 20px; 
+  text-align: center;
+  border-radius: 10px;
+  background: rgba(0, 243, 255, 0.03);
+  transition: all 0.3s;
+  cursor: pointer;
+}
+
+#dropZone:hover { background: rgba(0, 243, 255, 0.1); box-shadow: inset 0 0 20px rgba(0, 243, 255, 0.1); }
+
+/* ✍️ SIGNING PAD */
+#signPad { background: #000; width: 100%; height: 150px; border-radius: 10px; cursor: crosshair; }
+
+/* 🤖 RISK DISPLAY */
+#riskDisplay {
+  font-size: 2rem;
+  font-weight: 900;
+  text-align: center;
+  padding: 20px;
+  text-shadow: 0 0 10px rgba(255,255,255,0.3);
+}
+
+/* 📋 LISTS */
+ul { list-style: none; padding: 0; margin: 0; }
+li { 
+  padding: 10px; 
+  margin-bottom: 8px; 
+  background: rgba(255,255,255,0.03); 
+  border-radius: 5px; 
+  font-size: 0.85rem;
+  border-left: 2px solid transparent;
+}
+#requirements li { border-left-color: #ef4444; }
+#requirements li.complete { border-left-color: #10b981; color: #10b981; }
+
+/* INPUTS & BUTTONS */
+input, select {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(0, 243, 255, 0.3);
+  color: white;
+  padding: 10px;
+  border-radius: 5px;
+  width: calc(100% - 22px);
+  margin-bottom: 15px;
+}
+
+button {
+  background: var(--neon-cyan);
+  color: black;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: 0.3s;
+}
+
+button:hover { transform: scale(1.05); box-shadow: 0 0 15px var(--neon-cyan); }
+
+.low { color: #10b981; }
+.medium { color: #f59e0b; }
+.high { color: #ef4444; }
+
+#pdfCanvas { width: 100%; height: auto; border-radius: 5px; }
+
+/* 📜 AUDIT LOGS */
+#auditList { position: fixed; bottom: 20px; right: 20px; width: 300px; max-height: 200px; overflow: hidden; pointer-events: none; }
+#auditList li { background: rgba(15, 23, 42, 0.9); border: 1px solid var(--neon-cyan); font-size: 0.7rem; opacity: 0; animation: slideIn 0.5s forwards; }
+
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 </style>
 </head>
 
 <body>
 
+<div id="authOverlay">
+  <div class="auth-card">
+    <h1 style="color:var(--neon-cyan)">ADAK LOGIN</h1>
+    <p>Secure Enterprise Portal</p>
+    <input id="email" placeholder="email@adak.or.ke">
+    <input id="password" type="password" placeholder="password">
+    <div style="display:flex; gap:10px; margin-top:10px">
+      <button onclick="signup()" style="flex:1; background:transparent; border:1px solid var(--neon-cyan); color:white">Signup</button>
+      <button onclick="login()" style="flex:1">Login</button>
+    </div>
+  </div>
+</div>
+
 <header>
-<h2>⚡ ADAK Compliance AI System</h2>
-<select id="role">
-<option>Compliance Officer</option>
-<option>Auditor</option>
-</select>
+  <h2>⚡ ADAK <span style="font-weight:200">Compliance AI</span></h2>
+  <div style="display:flex; align-items:center; gap:20px">
+    <span id="userDisplay" style="font-size:0.8rem; color:var(--neon-cyan)"></span>
+    <select id="role" style="margin:0; width:auto">
+      <option>Compliance Officer</option>
+      <option>Auditor</option>
+    </select>
+  </div>
 </header>
 
-<!-- 🔐 AUTH -->
-<div class="card">
-<h3>Login / Signup</h3>
-<input id="email" placeholder="email@adak.or.ke">
-<input id="password" type="password" placeholder="password">
-<button onclick="signup()">Signup</button>
-<button onclick="login()">Login</button>
-<p id="userDisplay"></p>
-</div>
+<div class="tabs-container" id="tabs"></div>
 
-<!-- 📑 TABS -->
-<div class="tabs" id="tabs"></div>
+<div class="main-layout">
+  
+  <div class="card">
+    <h3>📋 Requirements</h3>
+    <ul id="requirements"></ul>
+    
+    <div style="margin-top:30px">
+      <h3>🔎 Search Docs</h3>
+      <input id="searchBox" placeholder="Keywords...">
+      <button onclick="searchDocs()" style="width:100%">Scan DB</button>
+      <ul id="results" style="margin-top:10px"></ul>
+    </div>
+  </div>
 
-<div class="container">
+  <div style="display:flex; flex-direction:column; gap:20px">
+    <div class="card" style="flex:1">
+      <h3>📄 PDF Secure Viewer</h3>
+      <canvas id="pdfCanvas"></canvas>
+    </div>
+    
+    <div class="card">
+      <h3>📤 Document Ingestion</h3>
+      <div id="dropZone">
+        <div style="font-size:2rem">📁</div>
+        DRAG & DROP COMPLIANCE FILE
+      </div>
+    </div>
+  </div>
 
-<!-- 📋 REQUIREMENTS -->
-<div class="card">
-<h3>Required Documents</h3>
-<ul id="requirements"></ul>
-</div>
+  <div style="display:flex; flex-direction:column; gap:20px">
+    <div class="card">
+      <h3>🤖 AI Risk Assessment</h3>
+      <div id="riskDisplay">ANALYZING...</div>
+    </div>
 
-<!-- 📤 UPLOAD -->
-<div class="card">
-<h3>Upload</h3>
-<div id="dropZone">Drag & Drop File</div>
-</div>
+    <div class="card" id="signSection">
+      <h3>✍️ Biometric Signature</h3>
+      <canvas id="signPad"></canvas>
+      <div style="display:flex; gap:10px; margin-top:10px">
+        <button onclick="clearSign()" style="flex:1; background:rgba(255,255,255,0.1); color:white">Clear</button>
+        <button onclick="signDoc()" style="flex:1">Authorize</button>
+      </div>
+    </div>
 
-<!-- 📄 PDF -->
-<div class="card">
-<h3>PDF Viewer</h3>
-<canvas id="pdfCanvas"></canvas>
-</div>
-
-<!-- ✍️ SIGN -->
-<div class="card">
-<h3>Sign & Secure</h3>
-<canvas id="signPad"></canvas>
-<button onclick="clearSign()">Clear</button>
-<button onclick="signDoc()">Sign</button>
-</div>
-
-<!-- 🔎 SEARCH -->
-<div class="card">
-<h3>Search Documents</h3>
-<input id="searchBox">
-<button onclick="searchDocs()">Search</button>
-<ul id="results"></ul>
-</div>
-
-<!-- 🤖 RISK -->
-<div class="card">
-<h3>AI Risk Score</h3>
-<div id="riskDisplay"></div>
-</div>
-
-<!-- 📜 LEDGER -->
-<div class="card">
-<h3>Ledger</h3>
-<button onclick="loadLedger()">Load Ledger</button>
-<ul id="ledger"></ul>
-</div>
+    <div class="card" style="flex:1">
+      <h3>📜 Live Blockchain Ledger</h3>
+      <button onclick="loadLedger()" style="width:100%; margin-bottom:10px; font-size:0.7rem">Refresh Chain</button>
+      <ul id="ledger"></ul>
+    </div>
+  </div>
 
 </div>
 
@@ -104,20 +286,19 @@ let currentUser = "";
 let currentDept = "Testing";
 let uploadedDocs = [];
 
-// 📚 REQUIREMENTS (FROM YOUR DOC)
 const requirementsMap = {
-Testing: ["Sample Inventory","Lab Records","ABP Staff","Whereabouts Logs"],
-Investigation: ["Whistleblower Policy","Investigation Reports"],
-Results: ["RM SOP","Case Tracker","B Sample Logs"],
-Education: ["Training Plan","Educator Logs"],
-DataProtection: ["Incident Response Plan","Privacy Policy"]
+  Testing: ["Sample Inventory","Lab Records","ABP Staff","Whereabouts Logs"],
+  Investigation: ["Whistleblower Policy","Investigation Reports"],
+  Results: ["RM SOP","Case Tracker","B Sample Logs"],
+  Education: ["Training Plan","Educator Logs"],
+  DataProtection: ["Incident Response Plan","Privacy Policy"]
 };
 
 // BUILD TABS
 const tabsDiv = document.getElementById("tabs");
 Object.keys(requirementsMap).forEach(dept=>{
   const t=document.createElement("div");
-  t.className="tab";
+  t.className="tab" + (dept === currentDept ? " active" : "");
   t.innerText=dept;
   t.onclick=()=>{
     document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
@@ -128,15 +309,15 @@ Object.keys(requirementsMap).forEach(dept=>{
   };
   tabsDiv.appendChild(t);
 });
-tabsDiv.children[0].classList.add("active");
 
-// LOAD REQUIREMENTS
 function loadRequirements(){
   const ul=document.getElementById("requirements");
   ul.innerHTML="";
   requirementsMap[currentDept].forEach(r=>{
     const li=document.createElement("li");
-    li.innerText = uploadedDocs.includes(r) ? "✅ "+r : "❌ "+r;
+    const isDone = uploadedDocs.includes(r);
+    li.className = isDone ? "complete" : "";
+    li.innerHTML = (isDone ? "✅ " : "⚡ ") + r;
     ul.appendChild(li);
   });
 }
@@ -146,36 +327,39 @@ loadRequirements();
 async function signup(){
   const res=await fetch("/signup",{method:"POST",headers:{"Content-Type":"application/json"},
   body:JSON.stringify({email:email.value,password:password.value})});
-  alert(await res.text());
+  const msg = await res.text();
+  alert(msg);
 }
 
 async function login(){
   const res=await fetch("/login",{method:"POST",headers:{"Content-Type":"application/json"},
   body:JSON.stringify({email:email.value,password:password.value})});
-  const data=await res.json();
-  currentUser=data.email;
-  document.getElementById("userDisplay").innerText="Logged in: "+currentUser;
+  if(res.ok) {
+    const data=await res.json();
+    currentUser=data.email;
+    document.getElementById("userDisplay").innerText="SYSTEM_USER: "+currentUser;
+    document.getElementById("authOverlay").style.display="none";
+  } else {
+    alert("ACCESS DENIED: Invalid Credentials");
+  }
 }
 
-// 📤 DRAG DROP
+// 📤 UPLOAD
+const dropZone = document.getElementById("dropZone");
 dropZone.ondragover=e=>e.preventDefault();
 dropZone.ondrop=async e=>{
   e.preventDefault();
   const file=e.dataTransfer.files[0];
-
   const fd=new FormData();
   fd.append("document",file);
   fd.append("department",currentDept);
   fd.append("user",currentUser);
-
   await fetch("/upload",{method:"POST",body:fd});
-
   uploadedDocs.push(file.name);
   loadRequirements();
   loadPDF(file);
 };
 
-// 📄 PDF VIEW
 function loadPDF(file){
   const reader=new FileReader();
   reader.onload=function(){
@@ -184,7 +368,7 @@ function loadPDF(file){
       pdf.getPage(1).then(page=>{
         const canvas=document.getElementById("pdfCanvas");
         const ctx=canvas.getContext("2d");
-        const vp=page.getViewport({scale:1.5});
+        const vp=page.getViewport({scale: 1});
         canvas.height=vp.height;
         canvas.width=vp.width;
         page.render({canvasContext:ctx,viewport:vp});
@@ -203,71 +387,65 @@ signCanvas.onmouseup=()=>draw=false;
 signCanvas.onmousemove=e=>{
   if(!draw)return;
   ctx.lineTo(e.offsetX,e.offsetY);
-  ctx.strokeStyle="cyan";
+  ctx.strokeStyle="#00f3ff";
+  ctx.lineWidth = 2;
   ctx.stroke();
 };
-
 function clearSign(){ctx.clearRect(0,0,signCanvas.width,signCanvas.height);}
 
-// 🔐 HASH + SIGN
 async function signDoc(){
   const data=signCanvas.toDataURL();
   const buf=await crypto.subtle.digest("SHA-256", new TextEncoder().encode(data));
   const hash=Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
-
   await fetch("/sign",{method:"POST",headers:{"Content-Type":"application/json"},
   body:JSON.stringify({user:currentUser,department:currentDept,hash})});
-
-  alert("🔐 Signed & Secured");
+  alert("BLOCKCHAIN AUTHENTICATION SUCCESSFUL");
 }
 
-// 🔎 SEARCH
 async function searchDocs(){
   const q=searchBox.value;
   const res=await fetch(`/search?dept=${currentDept}&q=${q}`);
   const data=await res.json();
-
   const ul=document.getElementById("results");
   ul.innerHTML="";
   data.forEach(d=>{
     const li=document.createElement("li");
-    li.innerText=d.name;
+    li.innerText= "📂 " + d.name;
     ul.appendChild(li);
   });
 }
 
-// 🤖 RISK
 async function loadRisk(){
   const res=await fetch(`/risk/${currentDept}`);
   const r=await res.json();
-  document.getElementById("riskDisplay").innerText=`Score: ${r.score} (${r.level})`;
+  const disp = document.getElementById("riskDisplay");
+  disp.innerText = r.score + "%";
+  disp.className = r.level.toLowerCase();
 }
 
-// 📜 LEDGER
 async function loadLedger(){
   const res=await fetch("/ledger");
   const data=await res.json();
-
   const ul=document.getElementById("ledger");
   ul.innerHTML="";
-  data.slice(-20).forEach(l=>{
+  data.slice(-10).forEach(l=>{
     const li=document.createElement("li");
-    li.innerText=`${l.action} | ${l.timestamp}`;
+    li.innerHTML=`<span style="color:var(--neon-cyan)">[${l.action}]</span><br><small>${new Date(l.timestamp).toLocaleTimeString()}</small>`;
     ul.appendChild(li);
   });
 }
 
-// 📡 LIVE AUDIT
 socket.on("auditUpdate", audit=>{
   const li=document.createElement("li");
   li.className=audit.riskLevel;
-  li.innerText=`${audit.department} | Risk: ${audit.riskScore}`;
+  li.innerHTML=`<strong>NEW AUDIT EVENT</strong><br>${audit.department} - Risk Index: ${audit.riskScore}`;
   document.getElementById("auditList").prepend(li);
+  setTimeout(()=> li.style.opacity = "0", 5000);
 });
 
-// 👤 ROLE CONTROL
 role.onchange=function(){
-  signCanvas.style.display = this.value==="Auditor" ? "none":"block";
+  document.getElementById("signSection").style.opacity = this.value==="Auditor" ? "0.3":"1";
+  document.getElementById("signSection").style.pointerEvents = this.value==="Auditor" ? "none":"all";
 };
 </script>
 
