@@ -1,26 +1,31 @@
 {
   "name": "adak-enterprise-compliance-ai",
-  "version": "1.0.0",
-  "description": "ADAK Enterprise Compliance AI System (Full Stack Backend)",
+  "version": "1.1.0",
+  "description": "ADAK Enterprise Compliance AI System - High-Security Full Stack Backend",
   "main": "server.js",
   "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node server.js"
   },
   "keywords": [
     "compliance",
+    "adak",
     "ai",
     "express",
     "mongodb",
     "socket.io",
-    "audit-system",
-    "document-ai"
+    "audit-trail",
+    "document-intelligence"
   ],
   "author": "ADAK Systems",
   "license": "ISC",
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.5.0",
