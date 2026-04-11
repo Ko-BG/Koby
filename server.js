@@ -1,3 +1,4 @@
+const PORT = process.env.PORT || 10000; // Render's default is usually 10000
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
