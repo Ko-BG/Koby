@@ -43,12 +43,15 @@ const MONGO_URI = process.env.MONGO_URI;
 
 // NEW: SMTP TRANSPORTER FOR EMAIL ALERTS
 const transporter = nodemailer.createTransport({
-  service: 'gmail', 
+  host: "smtp.office365.com", // Or "smtp.gmail.com" if ADAK uses Google
+  port: 587,
+  secure: false, // TLS
   auth: {
-    user: process.env.EMAIL_USER, 
-    pass: process.env.EMAIL_PASS
+    user: "your.name@adak.or.ke", 
+    pass: process.env.EMAIL_PASS // Your App Password
   }
 });
+
 
 // 3. SECURITY MIDDLEWARE
 app.use(helmet({ contentSecurityPolicy: false })); 
