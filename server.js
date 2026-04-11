@@ -1,76 +1,235 @@
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const path = require('path');
+import express from "express";
+import mongoose from "mongoose";
+import cors from "cors";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+import multer from "multer";
+import pdf from "pdf-parse";
+import fs from "fs";
+import http from "http";
+import { Server } from "socket.io";
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
-
-const PORT = process.env.PORT || 3000;
-
-// Serve static files (your index.html)
-app.use(express.static(__dirname));
-
-// Store player data
-const players = {};
-
-io.on('connection', (socket) => {
-    console.log(`[SYSTEM] Warrior connected: ${socket.id}`);
-
-    // Handle New Player Join
-    socket.on('joinGame', (username) => {
-        players[socket.id] = {
-            id: socket.id,
-            name: username || 'Unknown Warrior',
-            x: 0,
-            z: 0,
-            color: '#' + Math.floor(Math.random()*16777215).toString(16) // Random neon color
-        };
-
-        // Tell the new player about existing players
-        socket.emit('currentPlayers', players);
-
-        // Tell others a new warrior has entered Nairobi
-        socket.broadcast.emit('newPlayer', players[socket.id]);
-        
-        console.log(`${players[socket.id].name} has entered the chase.`);
-    });
-
-    // Handle Movement
-    socket.on('playerMovement', (movementData) => {
-        if (players[socket.id]) {
-            players[socket.id].x = movementData.x;
-            players[socket.id].z = movementData.z;
-            // Broadcast to everyone else
-            socket.broadcast.emit('playerMoved', players[socket.id]);
-        }
-    });
-
-    // Handle Chat
-    socket.on('chatMessage', (msg) => {
-        if (players[socket.id]) {
-            io.emit('newMessage', {
-                user: players[socket.id].name,
-                text: msg,
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            });
-        }
-    });
-
-    // Handle Disconnect
-    socket.on('disconnect', () => {
-        console.log(`[SYSTEM] Warrior disconnected: ${socket.id}`);
-        delete players[socket.id];
-        io.emit('playerDisconnected', socket.id);
-    });
+const io = new Server(server, {
+  cors: { origin: "*" }
 });
 
-server.listen(PORT, () => {
-    console.log(`
-    🚀 NAIROBI LOVE CHASE: STEAM EDITION
-    ------------------------------------
-    Server running at: http://localhost:${PORT}
-    Status: MOTOR_COMBAT_READY
-    `);
+// =========================
+// CONFIG
+// =========================
+const JWT_SECRET = "adak_secret_key";
+const MONGO_URI = "mongodb://localhost:27017/adak";
+
+// =========================
+// MIDDLEWARE
+// =========================
+app.use(cors());
+app.use(express.json());
+app.use("/uploads", express.static("uploads"));
+
+// =========================
+// DB
+// =========================
+mongoose.connect(MONGO_URI);
+
+// =========================
+// SOCKET.IO GLOBAL
+// =========================
+const emitAudit = (data) => {
+  io.emit("auditUpdate", data);
+};
+
+// =========================
+// SCHEMAS
+// =========================
+const User = mongoose.model("User", new mongoose.Schema({
+  email: String,
+  password: String,
+  role: String
+}));
+
+const Document = mongoose.model("Document", new mongoose.Schema({
+  name: String,
+  department: String,
+  fileUrl: String,
+  text: String,
+  score: Number,
+  riskLevel: String,
+  signature: String,
+  uploadedBy: String
+}));
+
+const Audit = mongoose.model("Audit", new mongoose.Schema({
+  action: String,
+  user: String,
+  department: String,
+  riskScore: Number,
+  riskLevel: String,
+  timestamp: { type: Date, default: Date.now }
+}));
+
+// =========================
+// AUTH MIDDLEWARE
+// =========================
+const auth = (req, res, next) => {
+  const token = req.headers.authorization;
+  if (!token) return res.status(401).json({ message: "No token" });
+
+  try {
+    req.user = jwt.verify(token, JWT_SECRET);
+    next();
+  } catch {
+    res.status(401).json({ message: "Invalid token" });
+  }
+};
+
+// =========================
+// UPLOAD
+// =========================
+const storage = multer.diskStorage({
+  destination: "uploads/",
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + "-" + file.originalname);
+  }
+});
+const upload = multer({ storage });
+
+// =========================
+// AUTH
+// =========================
+app.post("/signup", async (req, res) => {
+  const hash = await bcrypt.hash(req.body.password, 10);
+  await User.create({ email: req.body.email, password: hash, role: "viewer" });
+  res.json({ message: "User created" });
+});
+
+app.post("/login", async (req, res) => {
+  const user = await User.findOne({ email: req.body.email });
+  if (!user) return res.status(400).json({ message: "Not found" });
+
+  const ok = await bcrypt.compare(req.body.password, user.password);
+  if (!ok) return res.status(400).json({ message: "Wrong password" });
+
+  const token = jwt.sign(
+    { email: user.email, role: user.role },
+    JWT_SECRET
+  );
+
+  res.json({ token, email: user.email });
+});
+
+// =========================
+// 📤 UPLOAD + AI PDF
+// =========================
+app.post("/upload", auth, upload.single("document"), async (req, res) => {
+  let text = "";
+
+  if (req.file.mimetype === "application/pdf") {
+    const data = fs.readFileSync(req.file.path);
+    const pdfData = await pdf(data);
+    text = pdfData.text;
+  }
+
+  const score = Math.min(100, text.length / 25);
+  const riskLevel = score > 70 ? "HIGH" : score > 40 ? "MEDIUM" : "LOW";
+
+  const doc = await Document.create({
+    name: req.file.originalname,
+    department: req.body.department,
+    fileUrl: req.file.path,
+    text,
+    score,
+    riskLevel,
+    uploadedBy: req.body.user
+  });
+
+  const audit = await Audit.create({
+    action: "UPLOAD",
+    user: req.body.user,
+    department: req.body.department,
+    riskScore: score,
+    riskLevel
+  });
+
+  emitAudit(audit);
+
+  res.json(doc);
+});
+
+// =========================
+// 🔎 SEARCH
+// =========================
+app.get("/search", auth, async (req, res) => {
+  const docs = await Document.find({
+    department: req.query.dept,
+    name: { $regex: req.query.q || "", $options: "i" }
+  });
+
+  res.json(docs);
+});
+
+// =========================
+// 🤖 RISK
+// =========================
+app.get("/risk/:dept", auth, async (req, res) => {
+  const docs = await Document.find({ department: req.params.dept });
+
+  const avg = docs.reduce((a, b) => a + (b.score || 0), 0) / (docs.length || 1);
+
+  res.json({
+    score: avg,
+    level: avg > 70 ? "HIGH" : avg > 40 ? "MEDIUM" : "LOW"
+  });
+});
+
+// =========================
+// 🤖 ANALYZE
+// =========================
+app.post("/analyze/:id", auth, async (req, res) => {
+  const doc = await Document.findById(req.params.id);
+
+  const score = Math.floor(Math.random() * 100);
+  doc.score = score;
+  doc.riskLevel = score > 70 ? "HIGH" : score > 40 ? "MEDIUM" : "LOW";
+
+  await doc.save();
+
+  res.json(doc);
+});
+
+// =========================
+// ✍️ SIGN (FIXED TO MATCH FRONTEND)
+// =========================
+app.post("/sign", auth, async (req, res) => {
+  const doc = await Document.findById(req.body.documentId);
+
+  if (!doc) return res.status(404).json({ message: "Not found" });
+
+  doc.signature = req.body.hash; // FIXED MATCH WITH FRONTEND
+  await doc.save();
+
+  res.json({ message: "Signed" });
+});
+
+// =========================
+// 📜 LEDGER (FIXED MISSING ENDPOINT)
+// =========================
+app.get("/ledger", auth, async (req, res) => {
+  const logs = await Audit.find().sort({ timestamp: 1 });
+  res.json(logs);
+});
+
+// =========================
+// SOCKET CONNECT
+// =========================
+io.on("connection", (socket) => {
+  console.log("Client connected");
+});
+
+// =========================
+// START
+// =========================
+server.listen(3000, () => {
+  console.log("ADAK server running on http://localhost:3000");
 });
