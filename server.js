@@ -1,4 +1,3 @@
-const PORT = process.env.PORT || 10000; // Render's default is usually 10000
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
@@ -13,17 +12,25 @@ import { fileURLToPath } from "url";
 import { Server } from "socket.io";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
+import dotenv from "dotenv";
 
 /**
  * ADAK ENTERPRISE COMPLIANCE AI - MASTER SERVER V2.1
  * Updated: April 2026 
  */
 
+// Load environment variables from .env file (for local development)
+dotenv.config();
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = http.createServer(app);
+
+// CRITICAL FOR RENDER: Behind proxy fix for 502/Rate-limit errors
+app.set('trust proxy', 1);
+
 const io = new Server(server, { 
   cors: { origin: "*", methods: ["GET", "POST"] } 
 });
@@ -31,17 +38,23 @@ const io = new Server(server, {
 // ==========================================
 // CONFIGURATION & SECURITY
 // ==========================================
+const PORT = process.env.PORT || 10000; 
 const JWT_SECRET = process.env.JWT_SECRET || "adak_quantum_2026_top_secret";
-const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/adak_enterprise";
+const MONGO_URI = process.env.MONGO_URI;
 
-
+// Security Middleware
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(express.json());
 
+// Check for Database URI
+if (!MONGO_URI) {
+  console.error("❌ CRITICAL: MONGO_URI is missing from Environment Variables!");
+}
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 50, // Slightly increased for enterprise testing
+  max: 50, 
   message: { message: "Too many attempts. Security lockout active for 15 mins." }
 });
 
@@ -54,9 +67,11 @@ dirs.forEach(d => { if (!fs.existsSync(d)) fs.mkdirSync(d); });
 // ==========================================
 // DATABASE ARCHITECTURE
 // ==========================================
-mongoose.connect(MONGO_URI)
-  .then(() => console.log("💎 DATABASE: Connected to ADAK Secure Cluster"))
-  .catch(err => console.error("❌ DATABASE: Connection failed", err));
+if (MONGO_URI) {
+  mongoose.connect(MONGO_URI)
+    .then(() => console.log("💎 DATABASE: Connected to ADAK Secure Cluster"))
+    .catch(err => console.error("❌ DATABASE: Connection failed", err));
+}
 
 const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true },
@@ -260,7 +275,8 @@ io.on("connection", (socket) => {
   console.log(`📡 Socket Link: [${socket.id}]`);
 });
 
-server.listen(PORT, () => {
+// Listen on 0.0.0.0 for Render compatibility
+server.listen(PORT, "0.0.0.0", () => {
   console.log(`
   +-------------------------------------------+
   |    ADAK ENTERPRISE COMPLIANCE AI v2.1     |
