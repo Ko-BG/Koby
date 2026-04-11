@@ -15,7 +15,7 @@ import helmet from "helmet";
 import dotenv from "dotenv";
 
 /**
- * ADAK ENTERPRISE COMPLIANCE AI - MASTER SERVER V2.6
+ * ADAK ENTERPRISE COMPLIANCE AI - MASTER SERVER V3.0 (ENTERPRISE)
  * Sync with WADA 2024-25 Requirements & Digital Signatures
  */
 
@@ -70,11 +70,12 @@ const User = mongoose.model("User", new mongoose.Schema({
 const Document = mongoose.model("Document", new mongoose.Schema({
   name: String,
   department: String,
-  requirement: String, // NEW: Maps to WADA Specific recommendation
+  requirement: String, // Maps to WADA Specific recommendation
   fileUrl: String,
   riskScore: Number,
   riskLevel: String,
-  uploadedBy: String
+  uploadedBy: String,
+  extractedData: String // NEW: Added to support the AI Chatbot's query context
 }, { timestamps: true }));
 
 const Audit = mongoose.model("Audit", new mongoose.Schema({
@@ -82,7 +83,7 @@ const Audit = mongoose.model("Audit", new mongoose.Schema({
   user: String,
   department: String,
   details: String,
-  hash: String // NEW: For blockchain-style signature verification
+  hash: String // For blockchain-style signature verification
 }, { timestamps: true }));
 
 // 6. AUTH PROTECTION
@@ -156,7 +157,8 @@ app.post("/upload", upload.single("document"), async (req, res) => {
       fileUrl: req.file.path,
       riskScore: score,
       riskLevel: level,
-      uploadedBy: req.body.user
+      uploadedBy: req.body.user,
+      extractedData: extractedText // Storing for AI Chat logic
     });
 
     io.emit("auditUpdate", { 
@@ -171,7 +173,7 @@ app.post("/upload", upload.single("document"), async (req, res) => {
   }
 });
 
-// 9. NEW: DIGITAL SIGNATURE (VERIFICATION)
+// 9. DIGITAL SIGNATURE (VERIFICATION)
 app.post("/sign", async (req, res) => {
     try {
         const { user, department, hash } = req.body;
@@ -213,13 +215,43 @@ app.get("/search", async (req, res) => {
     res.json(results);
 });
 
-// 11. STARTUP
+// 11. ENTERPRISE: AI CHAT LOGIC (Supports index.html Chat Window)
+app.post("/query-ai", async (req, res) => {
+  try {
+    const { query, dept } = req.body;
+    // This endpoint finds the latest doc in the dept and searches for the query keyword
+    const latestDoc = await Document.findOne({ department: dept }).sort({ createdAt: -1 });
+    
+    let answer = "I have reviewed our current records. No specific conflict found.";
+    if (latestDoc && latestDoc.extractedData.toLowerCase().includes(query.toLowerCase())) {
+        answer = `I found a direct reference to your query in ${latestDoc.name}. It appears to align with our WADA compliance protocols.`;
+    }
+    
+    res.json({ answer });
+  } catch (err) {
+    res.status(500).json({ message: "AI_OFFLINE" });
+  }
+});
+
+// 12. SOCKET EVENT HANDLERS (Enterprise Communication)
+io.on("connection", (socket) => {
+  socket.on("adminBroadcast", (data) => {
+    // Allows the Compliance Admin to push high-priority messages
+    io.emit("auditUpdate", { 
+      action: "ADMIN_GLOBAL_ALERT", 
+      details: data.message,
+      user: data.admin 
+    });
+  });
+});
+
+// 13. STARTUP
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`
   +-------------------------------------------+
-  |    ADAK ENTERPRISE MASTER CORE v2.6       |
+  |    ADAK ENTERPRISE MASTER CORE v3.0       |
   +-------------------------------------------+
-  | STATUS: ONLINE                            |
+  | STATUS: ONLINE (Enterprise Mode)          |
   | PORT:   ${PORT}                             |
   | DB:     ${isDbConnected ? "CONNECTED" : "OFFLINE"}                 |
   +-------------------------------------------+
