@@ -124,7 +124,7 @@ h2 { margin: 0; text-transform: uppercase; letter-spacing: 3px; font-weight: 800
   cursor: pointer;
 }
 
-#signPad { background: #000; width: 100%; height: 150px; border-radius: 10px; cursor: crosshair; }
+#signPad { background: #000; width: 100%; height: 150px; border-radius: 10px; cursor: crosshair; touch-action: none; }
 
 #riskDisplay { font-size: 2.5rem; font-weight: 900; text-align: center; padding: 10px; }
 
@@ -537,19 +537,55 @@ function loadPDF(file) {
     reader.readAsArrayBuffer(file);
 }
 
+/* SMART SIGNATURE PAD ENGINE: Touch & Pen Support Integration */
 const signCanvas = document.getElementById("signPad");
 const sCtx = signCanvas.getContext("2d");
 let drawing = false;
 
-signCanvas.onmousedown = () => { drawing = true; sCtx.beginPath(); };
-signCanvas.onmouseup = () => drawing = false;
-signCanvas.onmousemove = e => {
+// Initialize signature pad width for responsive screens
+function resizeSignPad() {
+    const parent = signCanvas.parentElement;
+    signCanvas.width = parent.offsetWidth - 40;
+}
+window.addEventListener('resize', resizeSignPad);
+resizeSignPad();
+
+// Helper for unified coordinates (Mouse, Finger, Pen)
+function getCoords(e) {
+    const rect = signCanvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return { x: clientX - rect.left, y: clientY - rect.top };
+}
+
+const startDraw = (e) => {
+    e.preventDefault();
+    drawing = true;
+    const c = getCoords(e);
+    sCtx.beginPath();
+    sCtx.moveTo(c.x, c.y);
+};
+
+const moveDraw = (e) => {
     if(!drawing) return;
-    sCtx.lineTo(e.offsetX, e.offsetY);
+    e.preventDefault();
+    const c = getCoords(e);
+    sCtx.lineTo(c.x, c.y);
     sCtx.strokeStyle = "#00f3ff";
     sCtx.lineWidth = 2;
+    sCtx.lineCap = "round";
     sCtx.stroke();
 };
+
+const stopDraw = () => { drawing = false; };
+
+// Unified Event Listeners
+signCanvas.addEventListener("mousedown", startDraw);
+signCanvas.addEventListener("touchstart", startDraw);
+signCanvas.addEventListener("mousemove", moveDraw);
+signCanvas.addEventListener("touchmove", moveDraw);
+window.addEventListener("mouseup", stopDraw);
+window.addEventListener("touchend", stopDraw);
 
 function clearSign() { sCtx.clearRect(0,0,signCanvas.width, signCanvas.height); }
 
