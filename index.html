@@ -15,6 +15,7 @@
   --bg-dark: #020617;
   --glass: rgba(15, 23, 42, 0.8);
   --border-glow: 0 0 10px rgba(0, 243, 255, 0.3);
+  --master-gold: #fbbf24; /* New color for Legal Truth documents */
 }
 
 body { 
@@ -153,7 +154,7 @@ button {
 .medium { color: #f59e0b; }
 .high { color: #ef4444; }
 
-#auditList { position: fixed; bottom: 20px; right: 20px; width: 300px; list-style: none; pointer-events: none; }
+#auditList { position: fixed; bottom: 20px; right: 20px; width: 300px; list-style: none; pointer-events: none; z-index: 2000; }
 #auditList li { 
     background: #000; 
     border: 1px solid var(--neon-cyan); 
@@ -162,7 +163,11 @@ button {
     font-size: 0.7rem; 
     border-radius: 5px;
     animation: slideIn 0.5s ease;
+    box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
 }
+
+#auditList li.master-alert { border-color: var(--master-gold); color: var(--master-gold); }
+#auditList li.high-risk-alert { border-color: #ef4444; color: #ef4444; background: rgba(239, 68, 68, 0.1); }
 
 /* New Hover Effect for Requirements */
 #requirements li { cursor: pointer; transition: 0.3s; }
@@ -172,6 +177,7 @@ button {
 .pdf-nav { display: flex; justify-content: space-between; margin-bottom: 10px; }
 .ai-chat { background: rgba(0,0,0,0.3); border-radius: 10px; padding: 10px; height: 150px; overflow-y: auto; margin-bottom: 10px; font-size: 0.75rem; border: 1px solid rgba(0, 243, 255, 0.1); }
 .bot-msg { color: var(--neon-cyan); margin-bottom: 5px; }
+.master-msg { color: var(--master-gold); font-weight: bold; margin-bottom: 5px; } /* For Legal Truth responses */
 .user-msg { color: #fff; opacity: 0.8; margin-bottom: 5px; }
 #adminSection { border-top: 1px solid var(--neon-cyan); padding-top: 15px; margin-top: 15px; display: none; }
 
@@ -219,7 +225,7 @@ button {
 <div class="main-layout">
   <div class="card">
     <h3>📋 Unit Requirements</h3>
-    <p style="font-size: 0.7rem; opacity: 0.6; margin-bottom: 10px;">Select a WADA requirement to upload proof:</p>
+    <p id="unitDesc" style="font-size: 0.7rem; opacity: 0.6; margin-bottom: 10px;">Select a WADA requirement to upload proof:</p>
     <ul id="requirements" style="list-style:none; padding:0;"></ul>
     
     <div style="margin-top:30px">
@@ -249,7 +255,7 @@ button {
     <div class="card">
       <h3>🤖 Compliance AI Chat (Vector-Ref)</h3>
       <div id="aiChatWindow" class="ai-chat">
-          <div class="bot-msg">System: Vector engine initialized. Upload a document to query policy details.</div>
+          <div class="bot-msg">System: Vector engine initialized. Feed Master Documents in the Results tab to improve accuracy.</div>
       </div>
       <div style="display:flex; gap:5px">
         <input id="aiInput" placeholder="Ask a question about the file..." style="margin-bottom:0; font-size:0.8rem">
@@ -318,11 +324,13 @@ const requirementsMap = {
     "Non-Analytical ADRV Case Logs"
   ],
   Results: [
-    "APF/ATPF Review Policy Draft",
+    "ADAK Act (Master Reference)",
+    "Doping Policy (Master Reference)",
+    "ADAK Rules (Master Reference)",
+    "WADA Code (Master Reference)",
+    "All International Standards (Master Reference)",
     "B Sample Delay Protocol (~1 Month Notice)",
-    "Case Timeline Tracking System",
-    "Results Management Consistency Policy",
-    "CAS Jurisprudence Training Records"
+    "Case Timeline Tracking System"
   ],
   Education: [
     "Annual Education Activity Calendar",
@@ -348,6 +356,15 @@ function initTabs() {
             document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
             t.classList.add("active");
             currentDept = dept;
+            
+            // UI Update for Master Legal Ingestion
+            const desc = document.getElementById("unitDesc");
+            if(dept === "Results") {
+                desc.innerHTML = "<b style='color:var(--master-gold)'>KNOWLEDGE INGESTION MODE:</b> Upload official Laws/Codes to set the Source of Truth.";
+            } else {
+                desc.innerText = "Select a WADA requirement to upload proof:";
+            }
+
             loadRequirements();
             loadRisk();
         };
@@ -361,16 +378,22 @@ function loadRequirements() {
     requirementsMap[currentDept].forEach(r => {
         const li = document.createElement("li");
         const isDone = uploadedDocs.includes(r);
+        const isMaster = r.includes("(Master Reference)");
+        
         li.style.padding = "10px";
-        li.style.borderLeft = isDone ? "3px solid var(--neon-cyan)" : "3px solid #ef4444";
-        li.style.background = "rgba(255,255,255,0.02)";
+        li.style.borderLeft = isMaster ? "3px solid var(--master-gold)" : (isDone ? "3px solid var(--neon-cyan)" : "3px solid #ef4444");
+        li.style.background = isMaster ? "rgba(251, 191, 36, 0.05)" : "rgba(255,255,255,0.02)";
         li.style.marginBottom = "8px";
         li.style.fontSize = "0.75rem";
-        li.innerHTML = (isDone ? "✅ " : "⚡ ") + r;
+        li.innerHTML = (isDone ? "✅ " : (isMaster ? "⚖️ " : "⚡ ")) + r;
         
         li.onclick = () => {
             activeRequirement = r;
-            alert("Fulfilling Requirement: " + r + "\nPlease select the supporting document.");
+            if(isMaster) {
+                alert("INGESTING SOURCE OF TRUTH: " + r + "\nThe AI will now prioritize this document for future grading.");
+            } else {
+                alert("Fulfilling Requirement: " + r + "\nPlease select the supporting document.");
+            }
             document.getElementById('fileInput').click();
         };
 
@@ -418,7 +441,6 @@ async function login() {
             document.getElementById("userDisplay").innerText = `${currentUser} [${currentRole}]`;
             document.getElementById("authOverlay").style.display = "none";
             
-            // ENTERPRISE ADDITION: Admin Section Toggle
             if(currentRole === "Compliance Admin") document.getElementById("adminSection").style.display = "block";
 
             initTabs();
@@ -455,7 +477,12 @@ async function processUpload(file) {
     fd.append("department", currentDept);
     fd.append("user", currentUser);
     
-    if(activeRequirement) fd.append("requirement", activeRequirement);
+    // MASTER REFERENCE TRIGGER: Check if activeRequirement is a Master Doc
+    if(activeRequirement && activeRequirement.includes("(Master Reference)")) {
+        fd.append("requirement", "ADAK_MASTER_LEGAL_DOC");
+    } else if(activeRequirement) {
+        fd.append("requirement", activeRequirement);
+    }
 
     try {
         const res = await fetch("/upload", { method: "POST", body: fd });
@@ -473,14 +500,15 @@ async function processUpload(file) {
         loadRisk();
         loadLedger();
         
-        // ENTERPRISE ADDITION: Post-Upload AI Response
-        addToChat("System", `Document '${file.name}' indexed for departmental intelligence. Vector scan complete.`);
+        const isMaster = doc.isMasterReference;
+        const msg = isMaster ? `SUCCESS: Legal Truth '${file.name}' integrated into AI knowledge base.` : `Document '${file.name}' indexed for departmental intelligence.`;
+        addToChat("System", msg);
+        
     } catch(e) {
         alert("Upload failed.");
     }
 }
 
-// ENTERPRISE ADDITION: Multi-page Render Logic
 function renderPage(num) {
     pdfDoc.getPage(num).then(page => {
         const canvas = document.getElementById("pdfCanvas");
@@ -577,47 +605,54 @@ async function searchDocs() {
 socket.on("auditUpdate", audit => {
     const list = document.getElementById("auditList");
     const li = document.createElement("li");
+    
+    // Specialized Styling for Master Updates & Risk Alerts
+    if (audit.action === "MASTER_DOC_LOADED") li.className = "master-alert";
+    if (audit.details.includes("HIGH RISK")) li.className = "high-risk-alert";
+
     li.innerHTML = `<strong>EXTERNAL LOG:</strong> ${audit.action}<br>${audit.details}`;
     list.prepend(li);
     setTimeout(() => li.remove(), 8000);
 });
 
-// ENTERPRISE ADDITION: Admin & AI Logic
 function sendGlobalAlert() {
     const details = prompt("Enter priority alert message:");
     if(details) {
-        socket.emit("auditUpdate", { action: "ADMIN_GLOBAL_ALERT", details: details });
+        socket.emit("adminBroadcast", { action: "ADMIN_GLOBAL_ALERT", details: details, admin: currentUser });
         alert("Alert dispatched to all synchronized terminals.");
     }
 }
 
-function addToChat(user, msg) {
+function addToChat(user, msg, isMaster = false) {
     const win = document.getElementById("aiChatWindow");
     const div = document.createElement("div");
-    div.className = user === "System" ? "bot-msg" : "user-msg";
+    div.className = user === "System" ? (isMaster ? "master-msg" : "bot-msg") : "user-msg";
     div.innerText = `${user}: ${msg}`;
     win.appendChild(div);
     win.scrollTop = win.scrollHeight;
 }
 
-function queryAI() {
+async function queryAI() {
     const input = document.getElementById("aiInput");
     const q = input.value;
     if(!q) return;
     addToChat("You", q);
     input.value = "";
     
-    // Simulated Vector Response based on ADAK context
-    setTimeout(() => {
-        const responses = [
-            "Vector search indicates this file meets WADA 2024 retention guidelines.",
-            "I've flagged a potential gap in the 'Chain of Custody' section on page 2.",
-            "Relevant WADA Code Article found: 5.2.1. Policy alignment is 85%.",
-            "No conflicting data found in the current department's ledger."
-        ];
-        const r = responses[Math.floor(Math.random()*responses.length)];
-        addToChat("System", r);
-    }, 800);
+    try {
+        const res = await fetch('/query-ai', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: q, dept: currentDept })
+        });
+        const data = await res.json();
+        
+        // Detect if the answer came from a Master Reference
+        const isMaster = data.answer.includes("Official Policy");
+        addToChat("System", data.answer, isMaster);
+    } catch(e) {
+        addToChat("System", "Error querying vector engine.");
+    }
 }
 
 window.onload = () => {
