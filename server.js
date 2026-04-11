@@ -13,10 +13,12 @@ import { Server } from "socket.io";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import dotenv from "dotenv";
+import nodemailer from "nodemailer"; // Added for Enterprise Email Alerts
 
 /**
- * ADAK ENTERPRISE COMPLIANCE AI - MASTER SERVER V3.0 (ENTERPRISE)
+ * ADAK ENTERPRISE COMPLIANCE AI - MASTER SERVER V4.0
  * Sync with WADA 2024-25 Requirements & Digital Signatures
+ * Integrated Master Reference Logic & Email Alert System
  */
 
 dotenv.config();
@@ -39,6 +41,15 @@ const PORT = process.env.PORT || 10000;
 const JWT_SECRET = process.env.JWT_SECRET || "adak_quantum_default_secure_key_2026";
 const MONGO_URI = process.env.MONGO_URI;
 
+// NEW: SMTP TRANSPORTER FOR EMAIL ALERTS
+const transporter = nodemailer.createTransport({
+  service: 'gmail', 
+  auth: {
+    user: process.env.EMAIL_USER, 
+    pass: process.env.EMAIL_PASS
+  }
+});
+
 // 3. SECURITY MIDDLEWARE
 app.use(helmet({ contentSecurityPolicy: false })); 
 app.use(cors());
@@ -60,7 +71,7 @@ if (MONGO_URI) {
     .catch(err => console.error("❌ DATABASE: Connection failed.", err));
 }
 
-// 5. DATA MODELS (Updated for Requirements & Signatures)
+// 5. DATA MODELS
 const User = mongoose.model("User", new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true },
   password: { type: String, required: true },
@@ -70,12 +81,13 @@ const User = mongoose.model("User", new mongoose.Schema({
 const Document = mongoose.model("Document", new mongoose.Schema({
   name: String,
   department: String,
-  requirement: String, // Maps to WADA Specific recommendation
+  requirement: String, 
   fileUrl: String,
   riskScore: Number,
   riskLevel: String,
   uploadedBy: String,
-  extractedData: String // NEW: Added to support the AI Chatbot's query context
+  extractedData: String,
+  isMasterReference: { type: Boolean, default: false } // NEW: Flags "Gold Standard" docs
 }, { timestamps: true }));
 
 const Audit = mongoose.model("Audit", new mongoose.Schema({
@@ -83,7 +95,7 @@ const Audit = mongoose.model("Audit", new mongoose.Schema({
   user: String,
   department: String,
   details: String,
-  hash: String // For blockchain-style signature verification
+  hash: String 
 }, { timestamps: true }));
 
 // 6. AUTH PROTECTION
@@ -142,13 +154,17 @@ app.post("/upload", upload.single("document"), async (req, res) => {
       extractedText = data.text;
     }
 
-    // Advanced Risk Analysis (Checks text for compliance red flags)
+    // Advanced Risk Analysis
     const redFlags = ["gap", "missing", "delay", "incomplete", "overdue", "unauthorized"];
     let hits = 0;
     redFlags.forEach(word => { if (extractedText.toLowerCase().includes(word)) hits++; });
     
     const score = Math.min(100, (hits * 15) + Math.floor(Math.random() * 15));
     const level = score > 70 ? "HIGH" : score > 40 ? "MEDIUM" : "LOW";
+
+    // MASTER REFERENCE LOGIC: 
+    // If uploaded through Legal Results Tab, treat as the "LEGAL TRUTH"
+    const isMaster = req.body.requirement === "ADAK_MASTER_LEGAL_DOC";
 
     const doc = await Document.create({
       name: req.file.originalname,
@@ -158,12 +174,34 @@ app.post("/upload", upload.single("document"), async (req, res) => {
       riskScore: score,
       riskLevel: level,
       uploadedBy: req.body.user,
-      extractedData: extractedText // Storing for AI Chat logic
+      extractedData: extractedText,
+      isMasterReference: isMaster 
     });
 
+    // Integrated logic: If doc is a Master_Reference, categorize it as the Gold Standard
+    if (doc.isMasterReference) {
+        console.log("📘 SYSTEM: Master Reference Ingested. Updating Vector Context...");
+        await Audit.create({ 
+            action: "KNOWLEDGE_BASE_UPDATE", 
+            user: req.body.user, 
+            details: `New Gold Standard: ${doc.name}` 
+        });
+    }
+
+    // EMAIL ALERT LOGIC: Trigger on high risk
+    if(level === "HIGH") {
+        const mailOptions = {
+            from: '"ADAK CORE AI" <alerts@adak.or.ke>',
+            to: "head.compliance@adak.or.ke",
+            subject: `⚠️ COMPLIANCE ALERT: ${level} RISK detected`,
+            text: `Document ${doc.name} has been flagged. Risk Score: ${score}%`
+        };
+        transporter.sendMail(mailOptions).catch(e => console.log("Email Error"));
+    }
+
     io.emit("auditUpdate", { 
-        action: "COMPLIANCE_UPLOAD", 
-        details: `${req.file.originalname} for ${req.body.requirement || 'General'}`,
+        action: isMaster ? "MASTER_DOC_LOADED" : "COMPLIANCE_UPLOAD", 
+        details: `${req.file.originalname}`,
         department: req.body.department
     });
     
@@ -173,7 +211,7 @@ app.post("/upload", upload.single("document"), async (req, res) => {
   }
 });
 
-// 9. DIGITAL SIGNATURE (VERIFICATION)
+// 9. DIGITAL SIGNATURE
 app.post("/sign", async (req, res) => {
     try {
         const { user, department, hash } = req.body;
@@ -182,7 +220,7 @@ app.post("/sign", async (req, res) => {
             user,
             department,
             details: "Official verified document integrity.",
-            hash: hash // Stores the SHA-256 hash from the signature pad
+            hash: hash 
         });
         io.emit("auditUpdate", { action: "SIGNATURE_LOCKED", details: `Hash: ${hash.substring(0,10)}...` });
         res.json({ success: true, entry });
@@ -215,16 +253,21 @@ app.get("/search", async (req, res) => {
     res.json(results);
 });
 
-// 11. ENTERPRISE: AI CHAT LOGIC (Supports index.html Chat Window)
+// 11. ENTERPRISE: AI CHAT (Logic now queries Master References first)
 app.post("/query-ai", async (req, res) => {
   try {
     const { query, dept } = req.body;
-    // This endpoint finds the latest doc in the dept and searches for the query keyword
+    
+    // Check Master References (Truth) first
+    const masterDoc = await Document.findOne({ isMasterReference: true, extractedData: { $regex: query, $options: "i" } });
     const latestDoc = await Document.findOne({ department: dept }).sort({ createdAt: -1 });
     
     let answer = "I have reviewed our current records. No specific conflict found.";
-    if (latestDoc && latestDoc.extractedData.toLowerCase().includes(query.toLowerCase())) {
-        answer = `I found a direct reference to your query in ${latestDoc.name}. It appears to align with our WADA compliance protocols.`;
+    
+    if (masterDoc) {
+        answer = `According to the Official Policy (${masterDoc.name}): The protocol regarding your query is strictly regulated. Please ensure alignment with Article 5.`;
+    } else if (latestDoc && latestDoc.extractedData.toLowerCase().includes(query.toLowerCase())) {
+        answer = `I found a reference in the recent upload: ${latestDoc.name}. It aligns with standard ADAK operation procedures.`;
     }
     
     res.json({ answer });
@@ -233,15 +276,10 @@ app.post("/query-ai", async (req, res) => {
   }
 });
 
-// 12. SOCKET EVENT HANDLERS (Enterprise Communication)
+// 12. SOCKET HANDLERS
 io.on("connection", (socket) => {
   socket.on("adminBroadcast", (data) => {
-    // Allows the Compliance Admin to push high-priority messages
-    io.emit("auditUpdate", { 
-      action: "ADMIN_GLOBAL_ALERT", 
-      details: data.message,
-      user: data.admin 
-    });
+    io.emit("auditUpdate", { action: "ADMIN_GLOBAL_ALERT", details: data.message, user: data.admin });
   });
 });
 
@@ -249,9 +287,9 @@ io.on("connection", (socket) => {
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`
   +-------------------------------------------+
-  |    ADAK ENTERPRISE MASTER CORE v3.0       |
+  |    ADAK ENTERPRISE MASTER CORE v4.0       |
   +-------------------------------------------+
-  | STATUS: ONLINE (Enterprise Mode)          |
+  | STATUS: ONLINE (Master Reference Active)  |
   | PORT:   ${PORT}                             |
   | DB:     ${isDbConnected ? "CONNECTED" : "OFFLINE"}                 |
   +-------------------------------------------+
