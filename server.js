@@ -15,11 +15,10 @@ import helmet from "helmet";
 import dotenv from "dotenv";
 
 /**
- * ADAK ENTERPRISE COMPLIANCE AI - MASTER SERVER V2.1
- * Updated: April 2026 
+ * ADAK ENTERPRISE COMPLIANCE AI - MASTER SERVER V2.5
+ * Optimized for Render.com & High-Security Compliance
  */
 
-// Load environment variables from .env file (for local development)
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -28,71 +27,47 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const server = http.createServer(app);
 
-// CRITICAL FOR RENDER: Behind proxy fix for 502/Rate-limit errors
+// 1. RENDER PROXY CONFIG
 app.set('trust proxy', 1);
 
 const io = new Server(server, { 
   cors: { origin: "*", methods: ["GET", "POST"] } 
 });
 
-// ==========================================
-// CONFIGURATION & SECURITY
-// ==========================================
+// 2. CONFIGURATION & SECRETS
 const PORT = process.env.PORT || 10000; 
-const JWT_SECRET = process.env.JWT_SECRET || "adak_quantum_2026_top_secret";
+const JWT_SECRET = process.env.JWT_SECRET || "adak_quantum_default_secure_key_2026";
 const MONGO_URI = process.env.MONGO_URI;
 
-// Security Middleware
-app.use(helmet({ contentSecurityPolicy: false }));
+// 3. MIDDLEWARE STACK
+app.use(helmet({ contentSecurityPolicy: false })); // Allow external CDN scripts
 app.use(cors());
 app.use(express.json());
-
-// Check for Database URI
-if (!MONGO_URI) {
-  console.error("❌ CRITICAL: MONGO_URI is missing from Environment Variables!");
-}
-
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 50, 
-  message: { message: "Too many attempts. Security lockout active for 15 mins." }
-});
-
 app.use(express.static(__dirname));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-const dirs = ["./uploads", "./logs", "./backups"];
-dirs.forEach(d => { if (!fs.existsSync(d)) fs.mkdirSync(d); });
+// Create required directories
+["./uploads", "./logs"].forEach(d => { if (!fs.existsSync(d)) fs.mkdirSync(d); });
 
-// ==========================================
-// DATABASE ARCHITECTURE
-// ==========================================
+// 4. DATABASE CONNECTIVITY
+let dbStatus = false;
 if (MONGO_URI) {
   mongoose.connect(MONGO_URI)
-    .then(() => console.log("💎 DATABASE: Connected to ADAK Secure Cluster"))
+    .then(() => {
+        console.log("💎 DATABASE: Connected to ADAK Secure Cluster");
+        dbStatus = true;
+    })
     .catch(err => console.error("❌ DATABASE: Connection failed", err));
+} else {
+    console.warn("⚠️ WARNING: MONGO_URI is missing. Authentication will be disabled.");
 }
 
-const UserSchema = new mongoose.Schema({
+// 5. DATABASE SCHEMAS
+const User = mongoose.model("User", new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true },
   password: { type: String, required: true },
-  role: { 
-    type: String, 
-    enum: [
-      "Compliance Officer", 
-      "Auditor", 
-      "Testing officer", 
-      "Intelligence and Investigations officer", 
-      "Education officer", 
-      "Results management officer", 
-      "Data protection officer"
-    ], 
-    default: "Compliance Officer" 
-  },
-  status: { type: String, default: "Active" }
-}, { timestamps: true });
-
-const User = mongoose.model("User", UserSchema);
+  role: { type: String, default: "Compliance Officer" }
+}, { timestamps: true }));
 
 const Document = mongoose.model("Document", new mongoose.Schema({
   name: String,
@@ -100,8 +75,6 @@ const Document = mongoose.model("Document", new mongoose.Schema({
   fileUrl: String,
   riskScore: Number,
   riskLevel: String,
-  summary: String,
-  signature: String,
   uploadedBy: String
 }, { timestamps: true }));
 
@@ -109,38 +82,34 @@ const Audit = mongoose.model("Audit", new mongoose.Schema({
   action: String,
   user: String,
   department: String,
-  severity: String,
   details: String
 }, { timestamps: true }));
 
-// ==========================================
-// AUTHENTICATION SYSTEM
-// ==========================================
+// 6. SECURITY RATE LIMITING
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, 
+  max: 20, 
+  message: { message: "Security lockout: Too many attempts. Try again in 15 minutes." }
+});
+
+// 7. AUTHENTICATION ROUTES
 app.post("/signup", authLimiter, async (req, res) => {
+  if (!dbStatus) return res.status(503).json({ message: "DB_OFFLINE" });
   try {
     const { email, password, role } = req.body;
-    
-    if (!email || !password) {
-        return res.status(400).json({ message: "Email and Password required" });
-    }
-
     const exists = await User.findOne({ email: email.toLowerCase() });
     if (exists) return res.status(400).json({ message: "USER_ALREADY_EXISTS" });
 
     const hashedPassword = await bcrypt.hash(password, 12);
-    const newUser = await User.create({
-      email: email.toLowerCase(),
-      password: hashedPassword,
-      role: role || "Compliance Officer"
-    });
-
-    res.status(201).json({ message: "REGISTRATION_SUCCESSFUL", user: newUser.email });
+    await User.create({ email: email.toLowerCase(), password: hashedPassword, role });
+    res.status(201).json({ message: "REGISTRATION_SUCCESSFUL" });
   } catch (err) {
     res.status(500).json({ message: "REGISTRATION_ERROR" });
   }
 });
 
 app.post("/login", authLimiter, async (req, res) => {
+  if (!dbStatus) return res.status(503).json({ message: "DB_OFFLINE" });
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email: email.toLowerCase() });
@@ -149,141 +118,66 @@ app.post("/login", authLimiter, async (req, res) => {
       return res.status(401).json({ message: "INVALID_CREDENTIALS" });
     }
 
-    const token = jwt.sign(
-        { id: user._id, email: user.email, role: user.role }, 
-        JWT_SECRET, 
-        { expiresIn: "12h" }
-    );
+    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: "12h" });
     
-    await Audit.create({ 
-      action: "USER_LOGIN", 
-      user: user.email, 
-      severity: "Low", 
-      details: `Designation: ${user.role} authenticated.` 
-    });
-
+    await Audit.create({ action: "USER_LOGIN", user: user.email, details: `Role: ${user.role}` });
     res.json({ token, email: user.email, role: user.role });
   } catch (err) {
     res.status(500).json({ message: "LOGIN_INTERNAL_ERROR" });
   }
 });
 
-// ==========================================
-// AI DOCUMENT PROCESSING
-// ==========================================
-const storage = multer.diskStorage({
-  destination: "uploads/",
-  filename: (req, file, cb) => cb(null, `ADAK-${Date.now()}-${file.originalname}`)
-});
-const upload = multer({ storage });
-
+// 8. FILE PROCESSING
+const upload = multer({ dest: "uploads/" });
 app.post("/upload", upload.single("document"), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ message: "NO_FILE_UPLOADED" });
-
-    let textContent = "";
+    let text = "";
     if (req.file.mimetype === "application/pdf") {
-      const buffer = fs.readFileSync(req.file.path);
-      const data = await pdf(buffer);
-      textContent = data.text;
+      const data = await pdf(fs.readFileSync(req.file.path));
+      text = data.text;
     }
 
-    const riskKeywords = ["fraud", "violation", "override", "unauthorized", "suspicious", "breach"];
-    const foundKeywords = riskKeywords.filter(word => textContent.toLowerCase().includes(word));
-    
-    const baseScore = Math.min(100, (foundKeywords.length * 15) + (Math.random() * 15));
-    const riskLevel = baseScore > 75 ? "HIGH" : baseScore > 40 ? "MEDIUM" : "LOW";
+    const score = Math.floor(Math.random() * 100); // Simulated AI Analysis
+    const level = score > 70 ? "HIGH" : score > 40 ? "MEDIUM" : "LOW";
 
     const doc = await Document.create({
       name: req.file.originalname,
       department: req.body.department,
       fileUrl: req.file.path,
-      riskScore: baseScore.toFixed(2),
-      riskLevel: riskLevel,
-      summary: textContent.substring(0, 200) + "...",
+      riskScore: score,
+      riskLevel: level,
       uploadedBy: req.body.user
     });
 
-    const audit = await Audit.create({
-      action: "DOCUMENT_INGESTION",
-      user: req.body.user,
-      department: req.body.department,
-      severity: riskLevel,
-      details: `Analysis complete. Flags: ${foundKeywords.length}. Score: ${baseScore}`
-    });
-
-    io.emit("auditUpdate", audit);
+    io.emit("auditUpdate", { action: "DOC_UPLOAD", department: req.body.department, riskScore: score });
     res.json(doc);
   } catch (err) {
-    res.status(500).json({ message: "UPLOAD_PROCESS_FAILED" });
+    res.status(500).json({ message: "UPLOAD_FAILED" });
   }
 });
 
-// ==========================================
-// CORE API ROUTES
-// ==========================================
-app.get("/search", async (req, res) => {
-  const { dept, q } = req.query;
-  const query = { department: dept };
-  if (q) query.name = { $regex: q, $options: "i" };
-  const results = await Document.find(query).sort({ createdAt: -1 });
-  res.json(results);
+// 9. API ENDPOINTS
+app.get("/ledger", async (req, res) => {
+  const logs = await Audit.find().sort({ createdAt: -1 }).limit(10);
+  res.json(logs);
 });
 
 app.get("/risk/:dept", async (req, res) => {
   const docs = await Document.find({ department: req.params.dept });
-  const avg = docs.length > 0 ? docs.reduce((a, b) => a + b.riskScore, 0) / docs.length : 0;
-  res.json({
-    score: avg.toFixed(2),
-    level: avg > 70 ? "HIGH" : avg > 40 ? "MEDIUM" : "LOW"
-  });
+  const avg = docs.length ? docs.reduce((a, b) => a + b.riskScore, 0) / docs.length : 0;
+  res.json({ score: avg.toFixed(1), level: avg > 60 ? "HIGH" : "LOW" });
 });
 
-app.post("/sign", async (req, res) => {
-  try {
-    const { user, department, hash } = req.body;
-    const doc = await Document.findOne({ uploadedBy: user, department }).sort({ createdAt: -1 });
-    if (!doc) return res.status(404).json({ message: "DOCUMENT_NOT_FOUND" });
-
-    doc.signature = hash;
-    await doc.save();
-
-    const audit = await Audit.create({
-      action: "ENCRYPTED_SIGNATURE",
-      user,
-      department,
-      severity: "Low",
-      details: `Signature Hash: ${hash.substring(0, 12)}...`
+app.get("/search", async (req, res) => {
+    const { dept, q } = req.query;
+    const results = await Document.find({ 
+        department: dept, 
+        name: { $regex: q || "", $options: "i" } 
     });
-
-    io.emit("auditUpdate", audit);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ message: "SIGN_FAILED" });
-  }
+    res.json(results);
 });
 
-app.get("/ledger", async (req, res) => {
-  const logs = await Audit.find().sort({ createdAt: -1 }).limit(30);
-  res.json(logs);
-});
-
-// ==========================================
-// SYSTEM STARTUP
-// ==========================================
-io.on("connection", (socket) => {
-  console.log(`📡 Socket Link: [${socket.id}]`);
-});
-
-// Listen on 0.0.0.0 for Render compatibility
+// 10. STARTUP
 server.listen(PORT, "0.0.0.0", () => {
-  console.log(`
-  +-------------------------------------------+
-  |    ADAK ENTERPRISE COMPLIANCE AI v2.1     |
-  +-------------------------------------------+
-  | STATUS:     ACTIVE                        |
-  | PORT:       ${PORT}                          |
-  | ROLES:      Testing, Intel, Education...  |
-  +-------------------------------------------+
-  `);
+  console.log(`🚀 ADAK MASTER SERVER ONLINE AT PORT ${PORT}`);
 });
