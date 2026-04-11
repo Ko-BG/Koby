@@ -1,6 +1,6 @@
 {
   "name": "adak-enterprise-compliance-ai",
-  "version": "1.2.0",
+  "version": "2.1.0",
   "description": "ADAK Enterprise Compliance AI System - High-Security Full Stack Backend",
   "main": "server.js",
   "type": "module",
@@ -18,7 +18,8 @@
     "mongodb",
     "socket.io",
     "audit-trail",
-    "document-intelligence"
+    "document-intelligence",
+    "2026-standards"
   ],
   "author": "ADAK Systems",
   "license": "ISC",
