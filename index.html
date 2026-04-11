@@ -201,10 +201,21 @@ button:hover { transform: scale(1.05); box-shadow: 0 0 15px var(--neon-cyan); }
 
 <div id="authOverlay">
   <div class="auth-card">
-    <h1 style="color:var(--neon-cyan)">ADAK LOGIN</h1>
+    <h1 style="color:var(--neon-cyan)">ADAK CORE</h1>
     <p>Secure Enterprise Portal</p>
+    
     <input id="email" placeholder="email@adak.or.ke">
     <input id="password" type="password" placeholder="password">
+    
+    <select id="signupRole">
+      <option value="" disabled selected>Select Official Designation</option>
+      <option>Testing officer</option>
+      <option>Intelligence and Investigations officer</option>
+      <option>Education officer</option>
+      <option>Results management officer</option>
+      <option>Data protection officer</option>
+    </select>
+
     <div style="display:flex; gap:10px; margin-top:10px">
       <button onclick="signup()" style="flex:1; background:transparent; border:1px solid var(--neon-cyan); color:white">Signup</button>
       <button onclick="login()" style="flex:1">Login</button>
@@ -219,6 +230,11 @@ button:hover { transform: scale(1.05); box-shadow: 0 0 15px var(--neon-cyan); }
     <select id="role" style="margin:0; width:auto">
       <option>Compliance Officer</option>
       <option>Auditor</option>
+      <option>Testing officer</option>
+      <option>Intelligence and Investigations officer</option>
+      <option>Education officer</option>
+      <option>Results management officer</option>
+      <option>Data protection officer</option>
     </select>
   </div>
 </header>
@@ -323,24 +339,46 @@ function loadRequirements(){
 }
 loadRequirements();
 
-// 🔐 AUTH
+// 🔐 REFINED AUTH LOGIC
 async function signup(){
-  const res=await fetch("/signup",{method:"POST",headers:{"Content-Type":"application/json"},
-  body:JSON.stringify({email:email.value,password:password.value})});
-  const msg = await res.text();
-  alert(msg);
+  const roleVal = document.getElementById("signupRole").value;
+  if(!roleVal) return alert("Select a Role First");
+  
+  try {
+    const res=await fetch("/signup",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({email:email.value, password:password.value, role: roleVal})
+    });
+    const data = await res.json();
+    alert(data.message);
+  } catch(e) {
+    alert("Signup connection error");
+  }
 }
 
 async function login(){
-  const res=await fetch("/login",{method:"POST",headers:{"Content-Type":"application/json"},
-  body:JSON.stringify({email:email.value,password:password.value})});
-  if(res.ok) {
-    const data=await res.json();
-    currentUser=data.email;
-    document.getElementById("userDisplay").innerText="SYSTEM_USER: "+currentUser;
-    document.getElementById("authOverlay").style.display="none";
-  } else {
-    alert("ACCESS DENIED: Invalid Credentials");
+  try {
+    const res=await fetch("/login",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({email:email.value, password:password.value})
+    });
+    
+    if(res.ok) {
+      const data=await res.json();
+      currentUser=data.email;
+      document.getElementById("userDisplay").innerText=`${currentUser} [${data.role}]`;
+      document.getElementById("role").value = data.role; // Sync session role
+      document.getElementById("authOverlay").style.display="none";
+      loadRisk();
+      loadLedger();
+    } else {
+      const err = await res.json();
+      alert("ACCESS DENIED: " + err.message);
+    }
+  } catch(e) {
+    alert("Login system offline");
   }
 }
 
@@ -430,22 +468,23 @@ async function loadLedger(){
   ul.innerHTML="";
   data.slice(-10).forEach(l=>{
     const li=document.createElement("li");
-    li.innerHTML=`<span style="color:var(--neon-cyan)">[${l.action}]</span><br><small>${new Date(l.timestamp).toLocaleTimeString()}</small>`;
+    li.innerHTML=`<span style="color:var(--neon-cyan)">[${l.action}]</span><br><small>${new Date(l.timestamp || l.createdAt).toLocaleTimeString()}</small>`;
     ul.appendChild(li);
   });
 }
 
 socket.on("auditUpdate", audit=>{
   const li=document.createElement("li");
-  li.className=audit.riskLevel;
-  li.innerHTML=`<strong>NEW AUDIT EVENT</strong><br>${audit.department} - Risk Index: ${audit.riskScore}`;
+  li.className=audit.riskLevel || "low";
+  li.innerHTML=`<strong>NEW AUDIT EVENT</strong><br>${audit.department} - Risk Index: ${audit.riskScore || 'Analyzed'}`;
   document.getElementById("auditList").prepend(li);
   setTimeout(()=> li.style.opacity = "0", 5000);
 });
 
 role.onchange=function(){
-  document.getElementById("signSection").style.opacity = this.value==="Auditor" ? "0.3":"1";
-  document.getElementById("signSection").style.pointerEvents = this.value==="Auditor" ? "none":"all";
+  const isAuditor = (this.value==="Auditor");
+  document.getElementById("signSection").style.opacity = isAuditor ? "0.3":"1";
+  document.getElementById("signSection").style.pointerEvents = isAuditor ? "none":"all";
 };
 </script>
 
