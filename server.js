@@ -272,6 +272,28 @@ app.get("/search", async (req, res) => {
     }).sort({ createdAt: -1 });
     res.json(results);
 });
+// Add this to your server.js
+app.get("/api/v1/compliance/master-report", async (req, res) => {
+  try {
+    const allDocs = await Document.find();
+    const totalDocs = allDocs.length;
+    const highRisk = allDocs.filter(d => d.riskLevel === "HIGH").length;
+    
+    // Calculate an "Agency-Wide Compliance Score"
+    const totalScore = allDocs.reduce((a, b) => a + b.riskScore, 0);
+    const agencyAvg = totalDocs ? (totalScore / totalDocs).toFixed(1) : 0;
+
+    res.json({
+      agencyAvg,
+      totalDocs,
+      highRiskCount: highRisk,
+      status: agencyAvg > 70 ? "CRITICAL" : "STABLE",
+      timestamp: new Date()
+    });
+  } catch (e) {
+    res.status(500).json({ error: "REPORT_GEN_FAILED" });
+  }
+});
 
 // 12. ENTERPRISE: AI CHAT
 app.post("/query-ai", async (req, res) => {
